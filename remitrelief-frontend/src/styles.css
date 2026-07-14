@@ -67,6 +67,148 @@ input {
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
 }
 
+.hero-card {
+  display: grid;
+  gap: 2rem;
+  padding: 2.5rem;
+  margin-bottom: 2rem;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(16, 185, 129, 0.07));
+  border: 1px solid rgba(37, 99, 235, 0.14);
+  border-radius: 32px;
+}
+
+.hero-copy-block {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.hero-card .eyebrow {
+  margin: 0 0 0.75rem;
+  color: #2563eb;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.8rem;
+}
+
+.hero-card h1 {
+  margin: 0 0 1rem;
+  max-width: 720px;
+  font-size: clamp(2.4rem, 4vw, 3.75rem);
+  letter-spacing: -0.04em;
+}
+
+.hero-copy {
+  max-width: 720px;
+  line-height: 1.75;
+  color: #334155;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+  align-items: center;
+}
+
+.hero-actions button,
+.hero-actions a {
+  border-radius: 999px;
+  padding: 0.95rem 1.5rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.hero-actions button {
+  border: none;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: white;
+  cursor: pointer;
+}
+
+.hero-actions a {
+  color: #2563eb;
+  background: rgba(37, 99, 235, 0.1);
+}
+
+.hero-summary {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(180px, 1fr));
+}
+
+.hero-stat-card {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  padding: 1.25rem 1.35rem;
+  box-shadow: rgba(15, 23, 42, 0.06) 0 18px 40px;
+}
+
+.hero-stat-card p {
+  margin: 0;
+  color: #475569;
+  line-height: 1.6;
+}
+
+.hero-stat-card .stat-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.hero-stat-card strong {
+  display: block;
+  font-size: 1.5rem;
+}
+
+.feature-strip {
+  display: grid;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+  padding: 2rem;
+  background: white;
+  border-radius: 32px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+.feature-strip h2 {
+  margin: 0 0 0.75rem;
+  font-size: clamp(1.9rem, 3vw, 2.4rem);
+}
+
+.feature-strip p {
+  max-width: 720px;
+  color: #475569;
+  line-height: 1.75;
+}
+
+.feature-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.feature-card {
+  padding: 1.4rem;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+}
+
+.feature-card h3 {
+  margin: 0 0 0.75rem;
+  font-size: 1.1rem;
+}
+
+.feature-card p {
+  margin: 0;
+  color: #475569;
+  line-height: 1.6;
+}
+
 .campaign-card {
   position: relative;
   background: var(--panel);
@@ -93,12 +235,25 @@ input {
   color: var(--muted);
 }
 
+.progress-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.65rem;
+  font-size: 0.95rem;
+  color: #475569;
+}
+
+.progress-label {
+  font-weight: 700;
+}
+
 .progress-bar {
-  background: rgba(37, 99, 235, 0.08);
+  background: rgba(37, 99, 235, 0.12);
   border-radius: 999px;
   height: 12px;
   overflow: hidden;
-  margin: 1rem 0 1.15rem;
+  margin: 0.5rem 0 1.3rem;
 }
 
 .progress-fill {
@@ -112,12 +267,27 @@ input {
   line-height: 1.6;
 }
 
-.campaign-card .milestones {
+.campaign-card .card-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.4rem;
+}
+
+.campaign-card .stat-label {
+  display: block;
+  margin-bottom: 0.35rem;
   color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.campaign-card strong {
+  font-size: 1.15rem;
 }
 
 .campaign-card button {
-  margin-top: 1.5rem;
+  margin-top: 0.5rem;
+  width: 100%;
   border: none;
   border-radius: 999px;
   padding: 0.95rem 1.5rem;
@@ -135,19 +305,72 @@ input {
 .modal {
   position: fixed;
   inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  place-items: center;
   padding: 1.5rem;
   background: rgba(15, 23, 42, 0.72);
 }
 
-.modal > div {
-  width: min(560px, 100%);
+.modal-card {
+  width: min(640px, 100%);
   background: var(--panel);
   border-radius: 28px;
   padding: 2rem;
   box-shadow: var(--shadow);
+}
+
+.modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.7rem;
+}
+
+.modal-copy {
+  margin: 0 0 1.5rem;
+  color: #475569;
+  line-height: 1.8;
+}
+
+.input-label {
+  display: grid;
+  gap: 0.65rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.input-label input {
+  width: 100%;
+  padding: 1rem 1rem;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: #f8fafc;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+  margin-top: 1.5rem;
+}
+
+.modal-actions button {
+  border: none;
+  border-radius: 999px;
+  padding: 0.95rem 1.6rem;
+  cursor: pointer;
+}
+
+.modal-actions .secondary {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
 }
 
 input[type="number"] {
@@ -159,23 +382,75 @@ input[type="number"] {
   background: #f8fafc;
 }
 
-.modal button {
-  border: none;
-  border-radius: 999px;
-  padding: 0.95rem 1.4rem;
-  cursor: pointer;
-}
-
-.modal button.secondary {
-  margin-left: 0.75rem;
-  background: transparent;
-  color: var(--text);
-  box-shadow: inset 0 0 0 1px var(--border);
-}
-
 button:disabled {
   opacity: 0.7;
   cursor: not-allowed;
+}
+
+.how-it-works {
+  display: grid;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+  padding: 2rem;
+  background: #ffffff;
+  border-radius: 32px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+.how-copy h2 {
+  margin: 0 0 0.75rem;
+  font-size: clamp(1.9rem, 3vw, 2.5rem);
+}
+
+.how-copy p {
+  margin: 0;
+  color: #475569;
+  line-height: 1.8;
+}
+
+.steps-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(3, minmax(220px, 1fr));
+}
+
+.step-card {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 1.4rem;
+}
+
+.step-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  background: #2563eb;
+  color: white;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.step-card h3 {
+  margin: 0 0 0.65rem;
+}
+
+.step-card p {
+  margin: 0;
+  color: #475569;
+  line-height: 1.7;
+}
+
+@media (max-width: 900px) {
+  .hero-summary,
+  .feature-grid,
+  .steps-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 640px) {

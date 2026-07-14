@@ -3,12 +3,19 @@ import { connectWallet, signTransaction } from "../lib/wallet";
 import { buildDonationTx, submitSignedTx } from "../lib/stellar";
 import { Asset } from "@stellar/stellar-sdk";
 
-export default function DonateModal({ campaign, onClose }) {
+export default function DonateModal({ campaign, onClose, onSuccess }) {
   const [amount, setAmount] = useState("5");
   const [status, setStatus] = useState("idle"); // idle | connecting | signing | submitting | done | error
   const [message, setMessage] = useState("");
 
   async function handleDonate() {
+    const donationAmount = Number(amount);
+    if (!donationAmount || donationAmount <= 0) {
+      setMessage("Please enter a valid donation amount.");
+      setStatus("error");
+      return;
+    }
+
     try {
       setMessage("");
       setStatus("connecting");
@@ -18,7 +25,7 @@ export default function DonateModal({ campaign, onClose }) {
       const tx = await buildDonationTx({
         donorPublicKey,
         escrowContractAddress: campaign.escrowAddress,
-        amount,
+        amount: donationAmount.toFixed(2),
         destAsset: new Asset("USDC", campaign.usdcIssuer),
       });
       const signedXDR = await signTransaction(tx.toXDR(), donorPublicKey);
@@ -27,17 +34,20 @@ export default function DonateModal({ campaign, onClose }) {
       await submitSignedTx(signedXDR);
 
       setStatus("done");
-      setMessage("Donation sent successfully. Thank you for supporting the campaign.");
+      setMessage("Donation sent successfully. Your contribution is reflected below.");
+      if (typeof onSuccess === "function") {
+        onSuccess(campaign.id, donationAmount);
+      }
     } catch (err) {
       console.error(err);
       setStatus("error");
-      setMessage("Something went wrong. Please try again or refresh the page.");
+      setMessage("Something went wrong while processing your donation. Please try again.");
     }
   }
 
   return (
     <div className="modal">
-      <div>
+      <div className="modal-card">
         <div className="modal-header">
           <div>
             <p className="eyebrow">Donate securely</p>
@@ -48,7 +58,11 @@ export default function DonateModal({ campaign, onClose }) {
           </button>
         </div>
 
-        <label>
+        <p className="modal-copy">
+          Enter an amount in USD and complete the donation using your Stellar wallet. Funds will be routed into the escrow contract for verified release.
+        </p>
+
+        <label className="input-label">
           Amount (USD)
           <input
             type="number"

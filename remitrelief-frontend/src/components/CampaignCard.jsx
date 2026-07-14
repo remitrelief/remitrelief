@@ -1,6 +1,8 @@
 export default function CampaignCard({ campaign, onDonate }) {
   const { name, location, raised, goal, milestonesVerified, milestonesTotal } = campaign;
-  const pct = Math.min(100, Math.round((raised / goal) * 100));
+  const raisedValue = Number(raised);
+  const pct = Math.min(100, Math.round((raisedValue / goal) * 100));
+  const remaining = Math.max(0, goal - raisedValue);
 
   return (
     <div className="campaign-card">
@@ -13,19 +15,25 @@ export default function CampaignCard({ campaign, onDonate }) {
       </div>
       <p className="location">{location}</p>
 
+      <div className="progress-row">
+        <span className="progress-label">{pct}% funded</span>
+        <span className="progress-label">${remaining.toLocaleString()} left</span>
+      </div>
       <div className="progress-bar">
         <div className="progress-fill" style={{ width: `${pct}%` }} />
       </div>
+
       <div className="card-row">
-        <p className="stat">
-          <strong>${raised.toLocaleString()}</strong>
-          <span>raised</span>
-        </p>
-        <p className="stat">
+        <div>
+          <p className="stat-label">Raised</p>
+          <strong>${raisedValue.toLocaleString()}</strong>
+        </div>
+        <div>
+          <p className="stat-label">Goal</p>
           <strong>${goal.toLocaleString()}</strong>
-          <span>goal</span>
-        </p>
+        </div>
       </div>
+
       <button onClick={() => onDonate(campaign)}>Donate</button>
     </div>
   );
