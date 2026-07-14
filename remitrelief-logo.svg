@@ -1,0 +1,37 @@
+<svg width="640" height="200" viewBox="0 0 640 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="beaconGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FF6B35" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#FF6B35" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="pathGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3EC1D3"/>
+      <stop offset="100%" stop-color="#FF6B35"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Icon mark: beacon badge -->
+  <g transform="translate(20,20)">
+    <circle cx="80" cy="80" r="80" fill="#1B2340"/>
+
+    <!-- radar pulse rings (signal reaching someone) -->
+    <circle cx="80" cy="80" r="58" fill="none" stroke="#3EC1D3" stroke-opacity="0.35" stroke-width="2"/>
+    <circle cx="80" cy="80" r="42" fill="none" stroke="#3EC1D3" stroke-opacity="0.55" stroke-width="2"/>
+
+    <!-- converging relief/payment paths -->
+    <path d="M28 40 L74 76" stroke="url(#pathGrad)" stroke-width="4" stroke-linecap="round"/>
+    <path d="M132 40 L86 76" stroke="url(#pathGrad)" stroke-width="4" stroke-linecap="round"/>
+    <path d="M24 120 L72 84" stroke="url(#pathGrad)" stroke-width="4" stroke-linecap="round"/>
+    <path d="M136 120 L88 84" stroke="url(#pathGrad)" stroke-width="4" stroke-linecap="round"/>
+
+    <!-- glow + beacon core: point of relief -->
+    <circle cx="80" cy="80" r="26" fill="url(#beaconGlow)"/>
+    <circle cx="80" cy="80" r="9" fill="#F2E9DC"/>
+  </g>
+
+  <!-- Wordmark lockup -->
+  <g transform="translate(220,0)">
+    <text x="0" y="98" font-family="Space Grotesk, Sora, sans-serif" font-weight="700" font-size="52" fill="#1B2340">Remit<tspan fill="#FF6B35">Relief</tspan></text>
+    <text x="2" y="128" font-family="Inter, sans-serif" font-weight="500" font-size="16" letter-spacing="2.5" fill="#3EC1D3">INSTANT AID · ON STELLAR</text>
+  </g>
+</svg>
