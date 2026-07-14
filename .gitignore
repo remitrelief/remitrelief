@@ -1,0 +1,22 @@
+# Node modules
+node_modules/
+**/node_modules/
+
+# Frontend build artifacts
+remitrelief-frontend/dist/
+remitrelief-frontend/.vite/
+
+# Backend build artifacts
+remitrelief-backend/node_modules/
+remitrelief-backend/src/contracts/escrow-contract/target/
+remitrelief-backend/src/contracts/escrow-contract/Cargo.lock
+
+# Environment files
+.env
+*.env
+
+# Logs and editor files
+*.log
+*.tmp
+.DS_Store
+.vscode/
