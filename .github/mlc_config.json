@@ -1,0 +1,7 @@
+{
+  "retryOnError": true,
+  "retryCount": 3,
+  "ignorePatterns": [
+    { "pattern": "^http://localhost" }
+  ]
+}
