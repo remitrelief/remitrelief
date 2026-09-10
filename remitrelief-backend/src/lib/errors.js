@@ -16,6 +16,25 @@ export const ErrorCodes = {
   AUTH_CHALLENGE_INVALID: "INVALID_CHALLENGE",
   AUTH_SIGNATURE_INVALID: "INVALID_SIGNATURE",
   CAMPAIGN_NOT_FOUND: "CAMPAIGN_NOT_FOUND",
+  CAMPAIGN_ACCESS_DENIED: "CAMPAIGN_ACCESS_DENIED",
+  CAMPAIGN_NOT_EDITABLE: "CAMPAIGN_NOT_EDITABLE",
+  CAMPAIGN_INVALID_STATE: "CAMPAIGN_INVALID_STATE",
+  CAMPAIGN_ALREADY_SUBMITTED: "CAMPAIGN_ALREADY_SUBMITTED",
+  CAMPAIGN_ALREADY_ACTIVE: "CAMPAIGN_ALREADY_ACTIVE",
+  CAMPAIGN_EXPIRED: "CAMPAIGN_EXPIRED",
+  CAMPAIGN_INVALID_GOAL: "CAMPAIGN_INVALID_GOAL",
+  CAMPAIGN_INVALID_DEADLINE: "CAMPAIGN_INVALID_DEADLINE",
+  CAMPAIGN_INVALID_CATEGORY: "CAMPAIGN_INVALID_CATEGORY",
+  CAMPAIGN_INVALID_CURRENCY: "CAMPAIGN_INVALID_CURRENCY",
+  CAMPAIGN_SLUG_CONFLICT: "CAMPAIGN_SLUG_CONFLICT",
+  CAMPAIGN_RECIPIENT_NOT_FOUND: "CAMPAIGN_RECIPIENT_NOT_FOUND",
+  CAMPAIGN_ORGANIZATION_ACCESS_DENIED: "CAMPAIGN_ORGANIZATION_ACCESS_DENIED",
+  CAMPAIGN_REVIEW_REQUIRED: "CAMPAIGN_REVIEW_REQUIRED",
+  MILESTONE_NOT_FOUND: "MILESTONE_NOT_FOUND",
+  MILESTONE_INVALID: "MILESTONE_INVALID",
+  MILESTONE_SEQUENCE_CONFLICT: "MILESTONE_SEQUENCE_CONFLICT",
+  CAMPAIGN_UPDATE_NOT_AUTHORIZED: "CAMPAIGN_UPDATE_NOT_AUTHORIZED",
+  CAMPAIGN_MEDIA_NOT_AUTHORIZED: "CAMPAIGN_MEDIA_NOT_AUTHORIZED",
   ESCROW_NOT_FOUND: "ESCROW_NOT_FOUND",
   TRANSACTION_NOT_FOUND: "TRANSACTION_NOT_FOUND",
   TRANSACTION_FAILED: "TRANSACTION_FAILED",
@@ -50,6 +69,25 @@ const STATUS_BY_CODE = {
   [ErrorCodes.ROLE_REQUIRED]: 403,
   [ErrorCodes.PERMISSION_DENIED]: 403,
   [ErrorCodes.CAMPAIGN_NOT_FOUND]: 404,
+  [ErrorCodes.CAMPAIGN_ACCESS_DENIED]: 403,
+  [ErrorCodes.CAMPAIGN_NOT_EDITABLE]: 409,
+  [ErrorCodes.CAMPAIGN_INVALID_STATE]: 409,
+  [ErrorCodes.CAMPAIGN_ALREADY_SUBMITTED]: 409,
+  [ErrorCodes.CAMPAIGN_ALREADY_ACTIVE]: 409,
+  [ErrorCodes.CAMPAIGN_EXPIRED]: 409,
+  [ErrorCodes.CAMPAIGN_INVALID_GOAL]: 400,
+  [ErrorCodes.CAMPAIGN_INVALID_DEADLINE]: 400,
+  [ErrorCodes.CAMPAIGN_INVALID_CATEGORY]: 400,
+  [ErrorCodes.CAMPAIGN_INVALID_CURRENCY]: 400,
+  [ErrorCodes.CAMPAIGN_SLUG_CONFLICT]: 409,
+  [ErrorCodes.CAMPAIGN_RECIPIENT_NOT_FOUND]: 404,
+  [ErrorCodes.CAMPAIGN_ORGANIZATION_ACCESS_DENIED]: 403,
+  [ErrorCodes.CAMPAIGN_REVIEW_REQUIRED]: 409,
+  [ErrorCodes.MILESTONE_NOT_FOUND]: 404,
+  [ErrorCodes.MILESTONE_INVALID]: 400,
+  [ErrorCodes.MILESTONE_SEQUENCE_CONFLICT]: 409,
+  [ErrorCodes.CAMPAIGN_UPDATE_NOT_AUTHORIZED]: 403,
+  [ErrorCodes.CAMPAIGN_MEDIA_NOT_AUTHORIZED]: 403,
   [ErrorCodes.ESCROW_NOT_FOUND]: 404,
   [ErrorCodes.TRANSACTION_NOT_FOUND]: 404,
   [ErrorCodes.TRANSACTION_FAILED]: 400,
@@ -84,9 +122,13 @@ export function toErrorResponse(err) {
     return {
       status: err.status,
       body: {
-        error: err.message,
+        success: false,
+        error: {
+          code: err.code,
+          message: err.message,
+          ...(err.details ? { details: err.details } : {}),
+        },
         code: err.code,
-        ...(err.details ? { details: err.details } : {}),
       },
     };
   }
@@ -94,13 +136,24 @@ export function toErrorResponse(err) {
   if (err?.code && STATUS_BY_CODE[err.code]) {
     return {
       status: err.status || STATUS_BY_CODE[err.code],
-      body: { error: err.message, code: err.code },
+      body: {
+        success: false,
+        error: { code: err.code, message: err.message },
+        code: err.code,
+      },
     };
   }
 
   return {
     status: 500,
-    body: { error: "Internal server error", code: ErrorCodes.INTERNAL_ERROR },
+    body: {
+      success: false,
+      error: {
+        code: ErrorCodes.INTERNAL_ERROR,
+        message: "Internal server error",
+      },
+      code: ErrorCodes.INTERNAL_ERROR,
+    },
   };
 }
 

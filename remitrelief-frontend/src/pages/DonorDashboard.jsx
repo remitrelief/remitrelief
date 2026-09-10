@@ -20,7 +20,7 @@ export default function DonorDashboard() {
   useEffect(() => {
     Promise.all([fetchCampaigns(), fetchStats()])
       .then(([list, s]) => {
-        setCampaigns(list);
+        setCampaigns(list.data || []);
         setStats(s);
       })
       .catch(console.error);
@@ -47,7 +47,10 @@ export default function DonorDashboard() {
     }
   }
 
-  const campaignName = (id) => campaigns.find((c) => c.id === id)?.name || id;
+  const campaignName = (id) => {
+    const campaign = campaigns.find((item) => item.id === id);
+    return campaign?.title || campaign?.name || id;
+  };
   const totalGiven = donations.reduce((sum, d) => sum + Number(d.amount), 0);
 
   return (

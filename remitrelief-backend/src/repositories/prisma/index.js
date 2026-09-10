@@ -5,6 +5,12 @@
 import { getPrisma } from "../../database/prisma.js";
 import { hashSessionToken } from "../../auth/sessionToken.js";
 import { Roles, normalizeRoles } from "../../auth/roles.js";
+export {
+  campaignsRepo,
+  milestonesRepo,
+  campaignUpdatesRepo,
+  campaignMediaRepo,
+} from "./campaignRepos.js";
 
 function parseKeys(...envNames) {
   const set = new Set();
@@ -25,11 +31,6 @@ function seedRolesFor(walletAddress) {
   if (admins.has(walletAddress)) roles.add(Roles.ADMIN);
   if (ngos.has(walletAddress)) roles.add(Roles.NGO);
   if (recipients.has(walletAddress)) roles.add(Roles.RECIPIENT);
-  const demo =
-    process.env.NODE_ENV !== "production" &&
-    (process.env.DEMO_MODE == null ||
-      ["1", "true", "yes", "on"].includes(String(process.env.DEMO_MODE).toLowerCase()));
-  if (demo && ngos.size === 0) roles.add(Roles.NGO);
   return normalizeRoles([...roles]);
 }
 
@@ -54,29 +55,6 @@ function mapUser(u) {
     createdAt: u.createdAt?.toISOString?.() || u.createdAt,
     updatedAt: u.updatedAt?.toISOString?.() || u.updatedAt,
     lastLoginAt: u.lastLoginAt?.toISOString?.() || u.lastLoginAt,
-  };
-}
-
-function mapCampaign(c) {
-  if (!c) return null;
-  return {
-    id: c.id,
-    name: c.name,
-    location: c.location,
-    description: c.description,
-    category: c.category,
-    goal: Number(c.goal),
-    raised: Number(c.raised),
-    milestonesTotal: c.milestonesTotal,
-    milestonesVerified: c.milestonesVerified,
-    escrowAddress: c.escrowAddress,
-    usdcIssuer: c.usdcIssuer,
-    recipientName: c.recipientName,
-    imageGradient: c.imageGradient,
-    status: c.status,
-    createdAt: c.createdAt?.toISOString?.() || c.createdAt,
-    createdBy: c.createdByWallet,
-    milestoneLabels: c.milestoneLabels || [],
   };
 }
 
@@ -129,10 +107,6 @@ function slugify(text) {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "")
     .slice(0, 48);
-}
-
-function uid(prefix) {
-  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 async function ensureSeeded() {
@@ -426,110 +400,16 @@ export const organizationsRepo = {
   async listMembers(organizationId) {
     return getPrisma().organizationMember.findMany({ where: { organizationId } });
   },
-};
-
-export const campaignsRepo = {
-  async list({ q, category, status } = {}) {
-    await ensureSeeded();
-    const rows = await getPrisma().campaign.findMany({
-      where: {
-        ...(status ? { status } : {}),
-        ...(category && category !== "All"
-          ? { category: { equals: category, mode: "insensitive" } }
-          : {}),
-        ...(q
-          ? {
-              OR: [
-                { name: { contains: q, mode: "insensitive" } },
-                { location: { contains: q, mode: "insensitive" } },
-                { description: { contains: q, mode: "insensitive" } },
-                { category: { contains: q, mode: "insensitive" } },
-              ],
-            }
-          : {}),
-      },
+  async listForUser(userId) {
+    const memberships = await getPrisma().organizationMember.findMany({
+      where: { userId, status: "ACTIVE" },
+      include: { organization: true },
       orderBy: { createdAt: "desc" },
     });
-    return rows.map(mapCampaign);
-  },
-
-  async getById(id) {
-    await ensureSeeded();
-    return mapCampaign(await getPrisma().campaign.findUnique({ where: { id } }));
-  },
-
-  async create(input) {
-    await ensureSeeded();
-    const prisma = getPrisma();
-    const milestones = (input.milestones || [])
-      .filter((m) => m.label && Number(m.amount) > 0)
-      .map((m, index) => ({
-        index,
-        label: String(m.label).trim(),
-        amount: Number(m.amount),
-      }));
-    if (!input.name || !input.location || !input.goal) {
-      throw new Error("name, location, and goal are required");
-    }
-    if (!milestones.length) throw new Error("at least one milestone is required");
-
-    let id = slugify(input.name) || uid("campaign");
-    const exists = await prisma.campaign.findUnique({ where: { id } });
-    if (exists) id = `${id}-${Date.now().toString(36)}`;
-
-    let createdByUserId = null;
-    if (input.createdBy) {
-      const u = await prisma.user.findUnique({ where: { walletAddress: input.createdBy } });
-      createdByUserId = u?.id || null;
-    }
-
-    const campaign = await prisma.campaign.create({
-      data: {
-        id,
-        name: String(input.name).trim(),
-        location: String(input.location).trim(),
-        description: String(input.description || "").trim(),
-        category: String(input.category || "Relief").trim(),
-        goal: Number(input.goal),
-        raised: 0,
-        milestonesTotal: milestones.length,
-        milestonesVerified: 0,
-        escrowAddress: input.escrowAddress || null,
-        usdcIssuer: input.usdcIssuer || "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN",
-        recipientName: String(input.recipientName || "Relief partner").trim(),
-        imageGradient: input.imageGradient || null,
-        status: "active",
-        createdByWallet: input.createdBy || null,
-        createdByUserId,
-        milestoneLabels: milestones,
-        milestones: {
-          create: milestones.map((milestone) => ({
-            index: milestone.index,
-            label: milestone.label,
-            amount: milestone.amount,
-          })),
-        },
-      },
-    });
-
-    await ledgerRepo.append({
-      type: "campaign_created",
-      campaignId: campaign.id,
-      actor: input.createdBy || "organizer",
-      note: `Campaign created: ${campaign.name}`,
-      verifiedOnChain: false,
-      source: "application",
-    });
-
-    return mapCampaign(campaign);
-  },
-
-  async setMilestonesVerified(id, count) {
-    const c = await getPrisma().campaign.update({
-      where: { id },
-      data: { milestonesVerified: count },
-    });
-    return mapCampaign(c);
+    return memberships.map((membership) => ({
+      ...membership.organization,
+      membershipRole: membership.role,
+    }));
   },
 };
 
@@ -581,10 +461,12 @@ export const donationsRepo = {
         },
       });
 
-      await tx.campaign.update({
-        where: { id: campaignId },
-        data: { raised: { increment: Number(amount) } },
-      });
+      if (verifiedOnChain && toLedgerSource(source, verifiedOnChain) === "ON_CHAIN") {
+        await tx.campaign.update({
+          where: { id: campaignId },
+          data: { raised: { increment: String(amount) } },
+        });
+      }
 
       if (txHash && verifiedOnChain) {
         await tx.blockchainTransaction.create({
@@ -677,14 +559,25 @@ export const statsRepo = {
     await ensureSeeded();
     const prisma = getPrisma();
     const campaigns = await prisma.campaign.findMany();
-    const donationsCount = await prisma.donation.count();
+    const confirmedDonationWhere = {
+      verifiedOnChain: true,
+      source: "ON_CHAIN",
+      OR: [{ status: null }, { status: { notIn: ["FAILED", "REJECTED", "CANCELLED"] } }],
+    };
+    const [donationsCount, raised] = await Promise.all([
+      prisma.donation.count({ where: confirmedDonationWhere }),
+      prisma.donation.aggregate({
+        where: confirmedDonationWhere,
+        _sum: { amount: true },
+      }),
+    ]);
     const released = await prisma.ledgerEvent.aggregate({
       where: { type: "release" },
       _sum: { amount: true },
     });
     return {
-      campaignsActive: campaigns.filter((c) => c.status === "active").length,
-      totalRaised: campaigns.reduce((sum, c) => sum + Number(c.raised), 0),
+      campaignsActive: campaigns.filter((c) => c.status === "ACTIVE").length,
+      totalRaised: Number(raised._sum.amount || 0),
       totalGoal: campaigns.reduce((sum, c) => sum + Number(c.goal), 0),
       milestonesVerified: campaigns.reduce((sum, c) => sum + Number(c.milestonesVerified || 0), 0),
       milestonesTotal: campaigns.reduce((sum, c) => sum + Number(c.milestonesTotal || 0), 0),

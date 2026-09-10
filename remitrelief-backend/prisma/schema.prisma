@@ -51,6 +51,62 @@ enum TxStatus {
   REJECTED
 }
 
+enum CampaignStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  ACTIVE
+  COMPLETED
+  REJECTED
+  CANCELLED
+  CLOSED
+  EXPIRED
+}
+
+enum CampaignCategory {
+  MEDICAL
+  EDUCATION
+  FOOD
+  HOUSING
+  EMERGENCY
+  DISASTER
+  FAMILY
+  COMMUNITY
+}
+
+enum CampaignCurrency {
+  USDC
+  USD
+  NGN
+  EUR
+  GBP
+}
+
+enum CampaignVisibility {
+  PUBLIC
+  UNLISTED
+  PRIVATE
+}
+
+enum MilestoneStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum CampaignUpdateStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum CampaignMediaType {
+  IMAGE
+  VIDEO
+  DOCUMENT
+}
+
 model User {
   id            String     @id @default(cuid())
   walletAddress String     @unique @map("wallet_address")
@@ -68,6 +124,8 @@ model User {
   auditLogs     AuditLog[]
   memberships   OrganizationMember[]
   campaigns     Campaign[]           @relation("CampaignCreator")
+  beneficiaryCampaigns Campaign[]    @relation("CampaignRecipient")
+  campaignUpdates CampaignUpdate[]
   donations     Donation[]
 
   @@index([role])
@@ -185,35 +243,56 @@ model OrganizationMember {
 
 model Campaign {
   id                  String   @id
+  slug                String   @unique
   name                String
-  location            String
+  location            String   @default("")
+  shortDescription    String?  @map("short_description")
   description         String?
-  category            String?
+  category            CampaignCategory @default(EMERGENCY)
   goal                Decimal  @db.Decimal(20, 7)
   raised              Decimal  @default(0) @db.Decimal(20, 7)
+  currency            CampaignCurrency @default(USDC)
+  deadline            DateTime?
+  visibility          CampaignVisibility @default(PUBLIC)
+  coverImage          String?  @map("cover_image")
   milestonesTotal     Int      @default(0) @map("milestones_total")
   milestonesVerified  Int      @default(0) @map("milestones_verified")
   escrowAddress       String?  @map("escrow_address")
   usdcIssuer          String?  @map("usdc_issuer")
   recipientName       String?  @map("recipient_name")
   imageGradient       String?  @map("image_gradient")
-  status              String   @default("active")
+  status              CampaignStatus @default(DRAFT)
+  rejectionReason     String?  @map("rejection_reason")
   createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+  submittedAt         DateTime? @map("submitted_at")
+  approvedAt          DateTime? @map("approved_at")
+  activatedAt         DateTime? @map("activated_at")
+  completedAt         DateTime? @map("completed_at")
+  closedAt            DateTime? @map("closed_at")
   createdByWallet     String?  @map("created_by_wallet")
   createdByUserId     String?  @map("created_by_user_id")
+  recipientId         String?  @map("recipient_id")
   organizationId      String?  @map("organization_id")
   milestoneLabels     Json     @default("[]") @map("milestone_labels")
 
   creator       User?         @relation("CampaignCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
+  recipient     User?         @relation("CampaignRecipient", fields: [recipientId], references: [id], onDelete: SetNull)
   organization  Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   donations     Donation[]
   milestones    Milestone[]
+  updates       CampaignUpdate[]
+  media         CampaignMedia[]
   ledgerEvents  LedgerEvent[]
   transactions  BlockchainTransaction[]
 
   @@index([status])
   @@index([category])
   @@index([createdByUserId])
+  @@index([recipientId])
+  @@index([organizationId])
+  @@index([visibility, status, createdAt])
+  @@index([deadline])
   @@map("campaigns")
 }
 
@@ -223,6 +302,8 @@ model Milestone {
   index      Int
   label      String
   amount     Decimal  @db.Decimal(20, 7)
+  description String?
+  status     MilestoneStatus @default(PENDING)
   verified   Boolean  @default(false)
   released   Boolean  @default(false)
   createdAt  DateTime @default(now()) @map("created_at")
@@ -233,6 +314,41 @@ model Milestone {
   @@unique([campaignId, index])
   @@index([campaignId])
   @@map("milestones")
+}
+
+model CampaignUpdate {
+  id          String               @id @default(cuid())
+  campaignId  String               @map("campaign_id")
+  authorId    String               @map("author_id")
+  title       String
+  content     String
+  status      CampaignUpdateStatus @default(DRAFT)
+  createdAt   DateTime             @default(now()) @map("created_at")
+  updatedAt   DateTime             @updatedAt @map("updated_at")
+  publishedAt DateTime?            @map("published_at")
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  author   User     @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([campaignId, status, publishedAt])
+  @@index([authorId])
+  @@map("campaign_updates")
+}
+
+model CampaignMedia {
+  id         String            @id @default(cuid())
+  campaignId String            @map("campaign_id")
+  url        String
+  type       CampaignMediaType @default(IMAGE)
+  altText    String?           @map("alt_text")
+  sortOrder  Int               @default(0) @map("sort_order")
+  isCover    Boolean           @default(false) @map("is_cover")
+  createdAt  DateTime          @default(now()) @map("created_at")
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId, sortOrder])
+  @@map("campaign_media")
 }
 
 model Donation {
@@ -248,7 +364,7 @@ model Donation {
   source          LedgerSource @default(APPLICATION)
   createdAt       DateTime @default(now()) @map("created_at")
 
-  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Restrict)
   donor    User?    @relation(fields: [donorUserId], references: [id], onDelete: SetNull)
   transactions BlockchainTransaction[]
 

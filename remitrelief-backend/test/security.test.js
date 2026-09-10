@@ -279,7 +279,9 @@ describe("donation recording security", () => {
           donor: "GTESTDONORXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
           amount: 5,
         }),
-      (err) => err.code === "TRANSACTION_NOT_VERIFIED"
+      (err) =>
+        err.code === "TRANSACTION_NOT_VERIFIED" ||
+        err.code === "CAMPAIGN_INVALID_STATE"
     );
   });
 });

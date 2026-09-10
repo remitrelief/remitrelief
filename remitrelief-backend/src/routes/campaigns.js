@@ -1,39 +1,82 @@
 import { Router } from "express";
-import { createCampaign, getCampaignDetail, getStats, listCampaigns } from "../services/campaignsService.js";
-import { requireAuth } from "../middleware/auth.js";
-import { toErrorResponse } from "../lib/errors.js";
+import rateLimit from "express-rate-limit";
+import {
+  campaignDetail,
+  campaignStats,
+  createCampaignAction,
+  createMediaAction,
+  createMilestoneAction,
+  createUpdateAction,
+  deleteCampaignAction,
+  deleteMediaAction,
+  discoverCampaigns,
+  listUpdatesAction,
+  myCampaigns,
+  submitCampaignAction,
+  transitionCampaignAction,
+  updateCampaignAction,
+  updateUpdateAction,
+  updateMilestoneAction,
+} from "../controllers/campaignController.js";
+import { optionalAuth, requireAuth, requireRole } from "../middleware/auth.js";
+import { asyncHandler } from "../middleware/asyncHandler.js";
+import { Roles } from "../auth/roles.js";
 
 const router = Router();
 
-router.get("/", async (req, res) => {
-  const { q, category, status } = req.query;
-  res.json(await listCampaigns({ q, category, status }));
+const mutationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many campaign requests", code: "RATE_LIMITED" },
 });
 
-router.get("/meta/stats", async (_req, res) => {
-  res.json(await getStats());
-});
-
-router.post("/", requireAuth, async (req, res) => {
-  try {
-    const campaign = await createCampaign(req.body || {}, {
-      publicKey: req.user.walletAddress,
-    });
-    res.status(201).json(campaign);
-  } catch (err) {
-    const { status, body } = toErrorResponse(err);
-    res.status(status).json(body);
-  }
-});
-
-router.get("/:id", async (req, res) => {
-  try {
-    const campaign = await getCampaignDetail(req.params.id);
-    res.json(campaign);
-  } catch (err) {
-    const { status, body } = toErrorResponse(err);
-    res.status(status).json(body);
-  }
-});
+router.get("/", asyncHandler(discoverCampaigns));
+router.get("/meta/stats", asyncHandler(campaignStats));
+router.get("/mine", requireAuth, asyncHandler(myCampaigns));
+router.post("/", mutationLimiter, requireAuth, asyncHandler(createCampaignAction));
+router.get("/:id", optionalAuth, asyncHandler(campaignDetail));
+router.patch("/:id", mutationLimiter, requireAuth, asyncHandler(updateCampaignAction));
+router.delete("/:id", mutationLimiter, requireAuth, asyncHandler(deleteCampaignAction));
+router.post("/:id/submit", mutationLimiter, requireAuth, asyncHandler(submitCampaignAction));
+router.post(
+  "/:id/transitions/:status",
+  mutationLimiter,
+  requireRole(Roles.ADMIN),
+  asyncHandler(transitionCampaignAction)
+);
+router.post(
+  "/:id/milestones",
+  mutationLimiter,
+  requireAuth,
+  asyncHandler(createMilestoneAction)
+);
+router.patch(
+  "/:id/milestones/:milestoneId",
+  mutationLimiter,
+  requireAuth,
+  asyncHandler(updateMilestoneAction)
+);
+router.get("/:id/updates", optionalAuth, asyncHandler(listUpdatesAction));
+router.post(
+  "/:id/updates",
+  mutationLimiter,
+  requireAuth,
+  asyncHandler(createUpdateAction)
+);
+router.patch(
+  "/:id/updates/:updateId",
+  mutationLimiter,
+  requireAuth,
+  asyncHandler(updateUpdateAction)
+);
+router.post("/:id/media", mutationLimiter, requireAuth, asyncHandler(createMediaAction));
+router.delete(
+  "/:id/media/:mediaId",
+  mutationLimiter,
+  requireAuth,
+  asyncHandler(deleteMediaAction)
+);
 
 export default router;

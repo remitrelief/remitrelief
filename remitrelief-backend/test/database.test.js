@@ -138,13 +138,27 @@ describe("PostgreSQL/Prisma persistence", { skip: !databaseTestsEnabled }, () =>
     );
 
     const campaign = await repositories.campaignsRepo.create({
-      id: `phase3-campaign-${suffix}`,
-      name: "Phase 3 Database Campaign",
+      title: `Phase 4 Database Campaign ${suffix}`,
       location: "Testnet",
-      goal: 100,
-      createdBy: keypair.publicKey(),
+      shortDescription: "Database relationship integration test.",
+      description: "Fictional campaign used only for relational database testing.",
+      category: "COMMUNITY",
+      goalAmount: "100",
+      currency: "USDC",
+      visibility: "PRIVATE",
+      deadline: new Date(Date.now() + 86_400_000).toISOString(),
+      ownerId: user.id,
+      ownerWallet: keypair.publicKey(),
+      recipientId: user.id,
       organizationId: organization.id,
-      milestones: [{ label: "Delivery", amount: 100 }],
+      milestones: [
+        {
+          sequence: 0,
+          title: "Delivery",
+          description: "Complete fictional delivery.",
+          targetAmount: "100",
+        },
+      ],
     });
     cleanupCampaigns.add(campaign.id);
 
@@ -152,6 +166,44 @@ describe("PostgreSQL/Prisma persistence", { skip: !databaseTestsEnabled }, () =>
       await prisma.milestone.count({ where: { campaignId: campaign.id } }),
       1
     );
+    await assert.rejects(
+      () =>
+        prisma.milestone.create({
+          data: {
+            campaignId: campaign.id,
+            index: 0,
+            label: "Duplicate sequence",
+            amount: "1",
+          },
+        }),
+      (error) => error.code === "P2002"
+    );
+    await assert.rejects(
+      () =>
+        prisma.campaign.create({
+          data: {
+            id: `phase4-duplicate-${suffix}`,
+            slug: campaign.slug,
+            name: "Duplicate slug",
+            category: "COMMUNITY",
+            goal: "10",
+          },
+        }),
+      (error) => error.code === "P2002"
+    );
+
+    await repositories.donationsRepo.create({
+      campaignId: campaign.id,
+      donor: keypair.publicKey(),
+      amount: "25",
+      txHash: `phase4-test-${suffix}`,
+      status: "CONFIRMED",
+      verifiedOnChain: true,
+      source: "on_chain",
+    });
+    const withProgress = await repositories.campaignsRepo.getById(campaign.id);
+    assert.equal(withProgress.raisedAmount, "25");
+    assert.equal(withProgress.progressPercentage, 25);
 
     const invalidDonationId = `phase3-invalid-${suffix}`;
     await assert.rejects(

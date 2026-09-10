@@ -4,6 +4,21 @@
 
 **Disaster-relief microdonations on Stellar** — donors send USDC to verified campaigns; funds sit in a per-campaign Soroban escrow and release only after authorized milestone verification.
 
+## Advanced Campaign Engine (Phase 4)
+
+Campaigns support authenticated draft creation and editing, registered
+beneficiaries, optional authorized organization association, controlled
+categories/currencies/visibility, deadlines, relational milestones, campaign
+updates, media metadata, and stable public slugs.
+
+Public discovery provides bounded search, filtering, sorting, and pagination.
+Campaign progress is derived from qualifying verified donation records rather
+than client-provided totals. Lifecycle transitions are centralized; owners
+submit campaigns while ADMIN users control review, approval, activation,
+completion, cancellation after submission, expiry, and closure.
+
+Canonical APIs use `/api/*`. See `docs/CAMPAIGN_API.md`.
+
 ## Authentication Persistence (Phase 3)
 
 ```text

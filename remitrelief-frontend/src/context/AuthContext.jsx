@@ -4,7 +4,6 @@ import {
   clearSessionToken,
   fetchAuthChallenge,
   fetchMe,
-  getSessionToken,
   logoutAuth,
   setSessionToken,
   setUnauthorizedHandler,
@@ -31,11 +30,6 @@ export function AuthProvider({ children }) {
   }, []);
 
   const refreshSession = useCallback(async () => {
-    if (!getSessionToken()) {
-      setUser(null);
-      setLoading(false);
-      return null;
-    }
     try {
       const me = await fetchMe();
       const nextUser = me.user || me;
@@ -97,10 +91,8 @@ export function AuthProvider({ children }) {
     if (user?.walletAddress || user?.publicKey) {
       return user.walletAddress || user.publicKey;
     }
-    if (getSessionToken()) {
-      const me = await refreshSession();
-      if (me) return me.walletAddress || me.publicKey;
-    }
+    const me = await refreshSession();
+    if (me) return me.walletAddress || me.publicKey;
     const loggedIn = await login();
     return loggedIn.walletAddress || loggedIn.publicKey;
   }

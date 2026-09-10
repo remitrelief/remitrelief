@@ -1,14 +1,11 @@
-const API_URL = import.meta.env.VITE_API_URL || "";
+const API_URL = `${(import.meta.env.VITE_API_URL || "").replace(/\/$/, "")}/api`;
 
-const TOKEN_KEY = "remitrelief_sid";
-
-let sessionToken = sessionStorage.getItem(TOKEN_KEY) || "";
+// Cookies are canonical. This token exists only for older verify responses.
+let sessionToken = "";
 let onUnauthorized = null;
 
 export function setSessionToken(token) {
   sessionToken = token || "";
-  if (sessionToken) sessionStorage.setItem(TOKEN_KEY, sessionToken);
-  else sessionStorage.removeItem(TOKEN_KEY);
 }
 
 export function getSessionToken() {
@@ -46,18 +43,24 @@ async function request(path, options = {}) {
     headers,
     credentials: "include",
   });
-  const data = await res.json().catch(() => ({}));
+  const payload = res.status === 204 ? null : await res.json().catch(() => ({}));
   if (res.status === 401) {
     clearSessionToken();
-    if (typeof onUnauthorized === "function") onUnauthorized(data);
+    if (typeof onUnauthorized === "function") onUnauthorized(payload);
   }
   if (!res.ok) {
-    const err = new Error(data.error || `Request failed (${res.status})`);
-    err.code = data.code;
+    const errorBody = payload?.error;
+    const err = new Error(
+      (typeof errorBody === "object" ? errorBody?.message : errorBody) ||
+        payload?.message ||
+        `Request failed (${res.status})`
+    );
+    err.code = errorBody?.code || payload?.code;
     err.status = res.status;
     throw err;
   }
-  return data;
+  if (options.envelope) return payload || { success: true, data: null };
+  return payload?.success === true ? payload.data : payload;
 }
 
 export function fetchAuthChallenge(publicKey) {
@@ -86,7 +89,7 @@ export function fetchCampaigns(params = {}) {
   const qs = new URLSearchParams(
     Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== ""))
   ).toString();
-  return request(`/campaigns${qs ? `?${qs}` : ""}`);
+  return request(`/campaigns${qs ? `?${qs}` : ""}`, { envelope: true });
 }
 
 export function fetchCampaign(id) {
@@ -97,8 +100,67 @@ export function createCampaign(body) {
   return request("/campaigns", { method: "POST", body: JSON.stringify(body) });
 }
 
+export function updateCampaign(id, body) {
+  return request(`/campaigns/${id}`, { method: "PATCH", body: JSON.stringify(body) });
+}
+
+export function deleteCampaign(id) {
+  return request(`/campaigns/${id}`, { method: "DELETE" });
+}
+
+export function fetchMyCampaigns(params = {}) {
+  const qs = new URLSearchParams(
+    Object.fromEntries(Object.entries(params).filter(([, value]) => value != null && value !== ""))
+  ).toString();
+  return request(`/campaigns/mine${qs ? `?${qs}` : ""}`, { envelope: true });
+}
+
+export function submitCampaign(id) {
+  return request(`/campaigns/${id}/submit`, { method: "POST", body: JSON.stringify({}) });
+}
+
+export function transitionCampaign(id, status, reason) {
+  return request(`/campaigns/${id}/transitions/${status}`, {
+    method: "POST",
+    body: JSON.stringify({ reason }),
+  });
+}
+
+export function addCampaignMilestone(id, body) {
+  return request(`/campaigns/${id}/milestones`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateCampaignMilestone(id, milestoneId, body) {
+  return request(`/campaigns/${id}/milestones/${milestoneId}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
+export function fetchCampaignUpdates(id) {
+  return request(`/campaigns/${id}/updates`);
+}
+
+export function createCampaignUpdate(id, body) {
+  return request(`/campaigns/${id}/updates`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function addCampaignMedia(id, body) {
+  return request(`/campaigns/${id}/media`, { method: "POST", body: JSON.stringify(body) });
+}
+
+export function deleteCampaignMedia(id, mediaId) {
+  return request(`/campaigns/${id}/media/${mediaId}`, { method: "DELETE" });
+}
+
 export function fetchStats() {
-  return request("/stats");
+  return request("/campaigns/meta/stats");
 }
 
 export function fetchLedger(params = {}) {

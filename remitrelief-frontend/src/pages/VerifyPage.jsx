@@ -18,7 +18,7 @@ export default function VerifyPage() {
 
   useEffect(() => {
     fetchCampaigns()
-      .then((list) => {
+      .then(({ data: list = [] }) => {
         setCampaigns(list);
         if (list[0]) setCampaignId(list[0].id);
       })
@@ -137,7 +137,7 @@ export default function VerifyPage() {
             >
               {campaigns.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.name}
+                  {c.title || c.name}
                 </option>
               ))}
             </select>

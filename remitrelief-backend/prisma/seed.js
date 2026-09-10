@@ -36,7 +36,7 @@ async function main() {
     update: { role: "ADMIN", roles: ["ADMIN", "DONOR"], status: "ACTIVE" },
   });
 
-  await prisma.user.upsert({
+  const recipientUser = await prisma.user.upsert({
     where: { walletAddress: DONOR },
     create: {
       walletAddress: DONOR,
@@ -97,36 +97,82 @@ async function main() {
     update: { role: "OWNER" },
   });
 
-  await prisma.campaign.upsert({
-    where: { id: "development-relief-campaign" },
-    create: {
-      id: "development-relief-campaign",
-      name: "Development Relief Campaign",
-      location: "Stellar Testnet",
-      description: "Non-production campaign seeded for local Phase 3 testing.",
-      category: "Relief",
-      goal: 10000,
-      raised: 0,
-      milestonesTotal: 2,
-      milestonesVerified: 0,
-      recipientName: "Development Recipient",
-      status: "active",
+  const deadline = (days) => new Date(Date.now() + days * 86_400_000);
+  const campaignSeeds = [
+    ["medical-recovery-demo", "Community Medical Recovery", "MEDICAL", "DRAFT"],
+    ["education-access-demo", "Education Access Fund", "EDUCATION", "SUBMITTED"],
+    ["food-security-demo", "Neighborhood Food Security", "FOOD", "UNDER_REVIEW"],
+    ["housing-rebuild-demo", "Safe Housing Rebuild", "HOUSING", "APPROVED"],
+    ["emergency-support-demo", "Emergency Family Support", "EMERGENCY", "ACTIVE"],
+    ["disaster-recovery-demo", "Coastal Disaster Recovery", "DISASTER", "COMPLETED"],
+    ["family-care-demo", "Family Care Assistance", "FAMILY", "REJECTED"],
+    ["community-water-demo", "Community Water Access", "COMMUNITY", "ACTIVE"],
+  ];
+
+  for (const [id, name, category, status] of campaignSeeds) {
+    const data = {
+      slug: id,
+      name,
+      shortDescription: `Fictional ${category.toLowerCase()} campaign for local testing.`,
+      location: "Fictional Test Community",
+      description:
+        "This is fictional development seed content used to exercise the campaign lifecycle safely.",
+      category,
+      goal: "10000",
+      raised: "0",
+      currency: "USDC",
+      deadline: deadline(status === "COMPLETED" ? -10 : 60),
+      visibility: ["ACTIVE", "COMPLETED"].includes(status) ? "PUBLIC" : "PRIVATE",
+      status,
+      rejectionReason:
+        status === "REJECTED" ? "Seeded example requiring additional documentation." : null,
+      submittedAt: ["SUBMITTED", "UNDER_REVIEW", "APPROVED", "ACTIVE", "COMPLETED", "REJECTED"].includes(status)
+        ? deadline(-20)
+        : null,
+      approvedAt: ["APPROVED", "ACTIVE", "COMPLETED"].includes(status) ? deadline(-15) : null,
+      activatedAt: ["ACTIVE", "COMPLETED"].includes(status) ? deadline(-12) : null,
+      completedAt: status === "COMPLETED" ? deadline(-10) : null,
       createdByWallet: NGO,
       createdByUserId: ngoUser.id,
+      recipientId: recipientUser.id,
+      recipientName: "Development Recipient",
       organizationId: org.id,
+      milestonesTotal: 2,
+      milestonesVerified: status === "COMPLETED" ? 2 : 0,
       milestoneLabels: [
-        { index: 0, label: "Supplies staged", amount: 4000 },
-        { index: 1, label: "Distribution complete", amount: 6000 },
+        { index: 0, label: "Resources prepared", amount: "4000" },
+        { index: 1, label: "Support delivered", amount: "6000" },
       ],
-      milestones: {
-        create: [
-          { index: 0, label: "Supplies staged", amount: 4000 },
-          { index: 1, label: "Distribution complete", amount: 6000 },
-        ],
-      },
-    },
-    update: {},
-  });
+    };
+    await prisma.campaign.upsert({
+      where: { id },
+      create: { id, ...data },
+      update: data,
+    });
+    await prisma.milestone.deleteMany({ where: { campaignId: id } });
+    await prisma.milestone.createMany({
+      data: [
+        {
+          campaignId: id,
+          index: 0,
+          label: "Resources prepared",
+          description: "Prepare the fictional campaign resources.",
+          amount: "4000",
+          status: status === "COMPLETED" ? "COMPLETED" : "PENDING",
+          verified: status === "COMPLETED",
+        },
+        {
+          campaignId: id,
+          index: 1,
+          label: "Support delivered",
+          description: "Deliver support to the fictional beneficiary.",
+          amount: "6000",
+          status: status === "COMPLETED" ? "COMPLETED" : "PENDING",
+          verified: status === "COMPLETED",
+        },
+      ],
+    });
+  }
 
   console.log("Seed complete (development only)", {
     admin: admin.walletAddress,

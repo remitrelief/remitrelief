@@ -6,16 +6,14 @@ export default defineConfig({
     global: "globalThis",
   },
   plugins: [react()],
+  test: {
+    environment: "jsdom",
+    setupFiles: "./src/test/setup.js",
+  },
   server: {
     proxy: {
-      "/auth": "http://localhost:4000",
-      "/internal": "http://localhost:4000",
-      "/campaigns": "http://localhost:4000",
-      "/donations": "http://localhost:4000",
-      "/milestones": "http://localhost:4000",
-      "/ledger": "http://localhost:4000",
-      "/stats": "http://localhost:4000",
-      "/health": "http://localhost:4000",
+      // Canonical APIs live under /api so SPA routes like /campaigns stay free.
+      "/api": "http://localhost:4000",
     },
   },
 });

@@ -66,15 +66,16 @@ export default function Layout() {
   return (
     <div className="app-shell">
       <header className="site-header">
-        <NavLink to="/" className="brand">
+        <NavLink to="/campaigns" className="brand">
           <span className="brand-mark" aria-hidden="true" />
           <span className="brand-name">RemitRelief</span>
         </NavLink>
         <nav className="site-nav" aria-label="Primary">
-          <NavLink to="/" end>
+          <NavLink to="/campaigns">
             Campaigns
           </NavLink>
-          <NavLink to="/create">Create</NavLink>
+          <NavLink to="/create-campaign">Create</NavLink>
+          <NavLink to="/dashboard/campaigns">My campaigns</NavLink>
           <NavLink to="/ledger">Ledger</NavLink>
           <NavLink to="/dashboard">Dashboard</NavLink>
           <NavLink to="/verify">Verify</NavLink>

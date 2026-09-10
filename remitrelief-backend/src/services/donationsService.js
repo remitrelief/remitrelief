@@ -51,6 +51,12 @@ export async function recordVerifiedDonation({
   if (!campaign) {
     throw new AppError(ErrorCodes.CAMPAIGN_NOT_FOUND, "campaign not found");
   }
+  if (campaign.status !== "ACTIVE") {
+    throw new AppError(
+      ErrorCodes.CAMPAIGN_INVALID_STATE,
+      "Donations are accepted only for active campaigns"
+    );
+  }
 
   const amountNum = Number(amount);
   if (!Number.isFinite(amountNum) || amountNum <= 0) {
@@ -98,7 +104,7 @@ export async function recordVerifiedDonation({
     donor,
     amount: amountNum,
     txHash,
-    status: "escrowed",
+    status: "CONFIRMED",
     message,
     verifiedOnChain: true,
     source: "on_chain",

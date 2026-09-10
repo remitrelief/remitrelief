@@ -4,10 +4,12 @@ import { submitSignedSorobanTx } from "../lib/stellar";
 import { prepareDeposit, recordDonation } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
+import { campaignTitle } from "./CampaignUI";
 
 const PRESETS = [5, 10, 25, 50, 100];
 
 export default function DonateModal({ campaign, onClose, onSuccess }) {
+  const title = campaignTitle(campaign);
   const { ensureAuthenticated } = useAuth();
   const toast = useToast();
   const [amount, setAmount] = useState("25");
@@ -65,7 +67,7 @@ export default function DonateModal({ campaign, onClose, onSuccess }) {
         ? "Donation deposited into escrow."
         : "Demo donation recorded — deploy escrow for on-chain settlement.";
       setFeedback(okMsg);
-      toast.push(`Donated $${donationAmount} to ${campaign.name}`, "success");
+      toast.push(`Donated $${donationAmount} to ${title}`, "success");
       if (typeof onSuccess === "function") {
         onSuccess(campaign.id, donationAmount, donorPublicKey);
       }
@@ -85,7 +87,7 @@ export default function DonateModal({ campaign, onClose, onSuccess }) {
         <div className="modal-header">
           <div>
             <p className="eyebrow">Donate securely</p>
-            <h2 id="donate-title">Donate to {campaign.name}</h2>
+            <h2 id="donate-title">Donate to {title}</h2>
           </div>
           <button type="button" className="secondary" onClick={onClose}>
             Close

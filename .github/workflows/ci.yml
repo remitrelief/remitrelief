@@ -8,6 +8,20 @@ on:
 jobs:
   backend-tests:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: remitrelief
+          POSTGRES_PASSWORD: remitrelief_test
+          POSTGRES_DB: remitrelief_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U remitrelief -d remitrelief_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     defaults:
       run:
         working-directory: remitrelief-backend
@@ -24,6 +38,20 @@ jobs:
           NODE_ENV: development
           DEMO_MODE: "true"
           STELLAR_NETWORK: TESTNET
+          STORE_DRIVER: json
+      - run: npm run prisma:validate
+        env:
+          DATABASE_URL: postgresql://remitrelief:remitrelief_test@localhost:5432/remitrelief_test
+      - run: npm run prisma:migrate
+        env:
+          DATABASE_URL: postgresql://remitrelief:remitrelief_test@localhost:5432/remitrelief_test
+      - run: npm run test:db
+        env:
+          NODE_ENV: test
+          STORE_DRIVER: prisma
+          STELLAR_NETWORK: TESTNET
+          AUTH_SESSION_SECRET: ci-phase4-session-secret
+          DATABASE_URL: postgresql://remitrelief:remitrelief_test@localhost:5432/remitrelief_test
 
   frontend-build:
     runs-on: ubuntu-latest
@@ -38,6 +66,7 @@ jobs:
           cache: npm
           cache-dependency-path: remitrelief-frontend/package-lock.json
       - run: npm ci
+      - run: npm test
       - run: npm run build
 
   escrow-contract-tests:

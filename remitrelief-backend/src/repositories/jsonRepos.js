@@ -4,7 +4,30 @@ export const campaignsRepo = {
   list: async (filters) => store.listCampaigns(filters),
   getById: async (id) => store.getCampaign(id),
   create: async (input) => store.createCampaign(input),
+  update: async (id, input) => store.updateCampaign(id, input),
+  transition: async (id, status, reason) => store.transitionCampaign(id, status, reason),
+  deleteDraft: async (id) => store.deleteDraftCampaign(id),
   setMilestonesVerified: async (id, count) => store.setMilestonesVerified(id, count),
+};
+
+export const milestonesRepo = {
+  create: async (campaignId, input) => store.createMilestone(campaignId, input),
+  update: async (id, input) => store.updateMilestone(id, input),
+  findById: async (id) => store.getMilestone(id),
+};
+
+export const campaignUpdatesRepo = {
+  create: async (campaignId, authorId, input) =>
+    store.createCampaignUpdate(campaignId, authorId, input),
+  list: async (campaignId, options) => store.listCampaignUpdates(campaignId, options),
+  findById: async (id) => store.getCampaignUpdate(id),
+  update: async (id, input) => store.updateCampaignUpdate(id, input),
+};
+
+export const campaignMediaRepo = {
+  create: async (campaignId, input) => store.createCampaignMedia(campaignId, input),
+  remove: async (id) => store.removeCampaignMedia(id),
+  findById: async (id) => store.getCampaignMedia(id),
 };
 
 export const donationsRepo = {
@@ -53,8 +76,8 @@ export const sessionsRepo = {
 };
 
 export const auditRepo = {
-  create: async () => null,
-  findByUser: async () => [],
+  create: async (input) => store.createAuditLog(input),
+  findByUser: async (userId) => store.listAuditLogsByUser(userId),
   findRecent: async () => [],
 };
 
@@ -65,11 +88,12 @@ export const profilesRepo = {
 };
 
 export const organizationsRepo = {
-  create: async () => null,
-  findById: async () => null,
-  findBySlug: async () => null,
-  addMember: async () => null,
-  listMembers: async () => [],
+  create: async (input) => store.createOrganization(input),
+  findById: async (id) => store.getOrganization(id),
+  findBySlug: async (slug) => store.getOrganization(slug),
+  addMember: async (input) => store.addOrganizationMember(input),
+  listMembers: async (organizationId) => store.listOrganizationMembers(organizationId),
+  listForUser: async (userId) => store.listOrganizationsForUser(userId),
 };
 
 export const indexerRepo = {

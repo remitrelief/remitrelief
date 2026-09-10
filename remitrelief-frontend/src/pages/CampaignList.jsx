@@ -1,200 +1,97 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import CampaignCard from "../components/CampaignCard";
 import DonateModal from "../components/DonateModal";
-import { fetchCampaigns, fetchStats } from "../lib/api";
-
-const CATEGORIES = ["All", "Flood", "Wildfire", "Cyclone", "Earthquake", "Relief"];
+import {
+  CampaignFilters,
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  Pagination,
+} from "../components/CampaignUI";
+import { fetchCampaigns } from "../lib/api";
 
 export default function CampaignList() {
   const [campaigns, setCampaigns] = useState([]);
-  const [stats, setStats] = useState(null);
+  const [meta, setMeta] = useState({ page: 1, totalPages: 1, total: 0 });
   const [selected, setSelected] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [q, setQ] = useState("");
-  const [category, setCategory] = useState("All");
-  const [sort, setSort] = useState("raised");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const filters = {
+    search: searchParams.get("search") || "",
+    category: searchParams.get("category") || "",
+    sort: searchParams.get("sort") || "newest",
+    page: Math.max(1, Number(searchParams.get("page")) || 1),
+  };
 
-  async function load(params = {}) {
+  async function load() {
     setLoading(true);
     setError(null);
     try {
-      const [list, s] = await Promise.all([
-        fetchCampaigns({ q: params.q ?? q, category: params.category ?? category }),
-        fetchStats(),
-      ]);
-      setCampaigns(list);
-      setStats(s);
+      const result = await fetchCampaigns({ ...filters, limit: 12 });
+      setCampaigns(result.data || []);
+      setMeta(result.meta || { page: 1, totalPages: 1, total: result.data?.length || 0 });
     } catch (err) {
-      console.error(err);
-      setError("Unable to load campaigns. Is the API running?");
+      setError(err.message);
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    const t = setTimeout(() => load({ q, category }), q || category !== "All" ? 250 : 0);
+    const t = setTimeout(load, filters.search ? 250 : 0);
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, category]);
+  }, [filters.search, filters.category, filters.sort, filters.page]);
 
-  const sorted = useMemo(() => {
-    const rows = [...campaigns];
-    if (sort === "raised") rows.sort((a, b) => Number(b.raised) - Number(a.raised));
-    if (sort === "goal") rows.sort((a, b) => Number(b.goal) - Number(a.goal));
-    if (sort === "progress") {
-      rows.sort(
-        (a, b) => Number(b.raised) / Number(b.goal || 1) - Number(a.raised) / Number(a.goal || 1)
-      );
-    }
-    if (sort === "newest") {
-      rows.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-    }
-    return rows;
-  }, [campaigns, sort]);
-
-  function handleDonationSuccess(campaignId, donatedAmount) {
-    setCampaigns((prev) =>
-      prev.map((campaign) =>
-        campaign.id === campaignId
-          ? { ...campaign, raised: Number(campaign.raised) + Number(donatedAmount) }
-          : campaign
-      )
-    );
-    setSelected((current) =>
-      current && current.id === campaignId
-        ? { ...current, raised: Number(current.raised) + Number(donatedAmount) }
-        : current
-    );
-    fetchStats().then(setStats).catch(() => {});
+  function updateFilter(name, value) {
+    const next = new URLSearchParams(searchParams);
+    if (value) next.set(name, value);
+    else next.delete(name);
+    if (name !== "page") next.delete("page");
+    setSearchParams(next);
   }
 
-  const totalRaised = stats?.totalRaised ?? campaigns.reduce((sum, c) => sum + Number(c.raised), 0);
+  function handleDonationSuccess() {
+    load();
+  }
 
   return (
     <div className="page campaign-list">
       <section className="hero-card">
         <div className="hero-copy-block">
-          <p className="eyebrow">Community escrow for relief</p>
-          <h1>Fund trusted campaigns with milestone-protected donations.</h1>
+          <p className="eyebrow">Transparent community relief</p>
+          <h1>Support campaigns built around measurable outcomes.</h1>
           <p className="hero-copy">
-            RemitRelief connects donors, relief organizers, and verified milestones on the Stellar
-            network. Your gift is held in escrow and released only after delivery is confirmed.
+            Discover verified relief work, follow milestones, and see each campaign’s progress.
           </p>
           <div className="hero-actions">
             <a href="#campaigns">Explore campaigns</a>
-            <Link to="/create">Start a campaign</Link>
-            <Link to="/ledger">View ledger</Link>
+            <Link to="/create-campaign">Start a campaign</Link>
           </div>
         </div>
-        <div className="hero-summary">
-          <div className="hero-stat-card">
-            <span className="stat-label">Total funds secured</span>
-            <strong>${Number(totalRaised).toLocaleString()}</strong>
-          </div>
-          <div className="hero-stat-card">
-            <span className="stat-label">Verified payout stages</span>
-            <strong>{stats?.milestonesVerified ?? 0}</strong>
-          </div>
-          <div className="hero-stat-card">
-            <span className="stat-label">Campaigns active</span>
-            <strong>{stats?.campaignsActive ?? campaigns.length}</strong>
-          </div>
-          <div className="hero-stat-card hero-note">
-            <p>
-              ${Number(stats?.amountReleased || 0).toLocaleString()} already released after
-              milestone proof. Every payout is gated by verification.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <section className="feature-strip">
-        <div>
-          <h2>Built for transparent impact</h2>
-          <p>
-            Combine Stellar smart contracts, milestone verification, and a public ledger so donors
-            can follow funds from gift to ground delivery.
-          </p>
-        </div>
-        <div className="feature-grid">
-          <div className="feature-card">
-            <h3>Escrow protection</h3>
-            <p>Funds stay in contract until each milestone passes verification.</p>
-          </div>
-          <div className="feature-card">
-            <h3>Milestone transparency</h3>
-            <p>Follow verified stages and live funding status for every project.</p>
-          </div>
-          <div className="feature-card">
-            <h3>Stellar-native payments</h3>
-            <p>Fast, low-cost USDC deposits via Soroban escrow on testnet.</p>
-          </div>
-        </div>
+        <div className="hero-stat-card"><span className="stat-label">Campaigns found</span><strong>{meta.total || 0}</strong></div>
       </section>
 
       <section id="campaigns" className="section-block">
         <div className="section-heading row-between">
-          <div>
-            <h2>Active campaigns</h2>
-            <p>Filter by disaster type or search by location.</p>
-          </div>
-          <Link className="secondary-link" to="/create">
+          <div><h2>Explore campaigns</h2><p>Search and filter active public campaigns.</p></div>
+          <Link className="secondary-link" to="/create-campaign">
             + Create campaign
           </Link>
         </div>
-
-        <div className="filter-bar">
-          <label className="sr-only" htmlFor="campaign-search">
-            Search campaigns
-          </label>
-          <input
-            id="campaign-search"
-            className="search-input"
-            type="search"
-            placeholder="Search name, location, category…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-          />
-          <div className="chip-row" role="group" aria-label="Categories">
-            {CATEGORIES.map((c) => (
-              <button
-                key={c}
-                type="button"
-                className={`chip ${category === c ? "active" : ""}`}
-                onClick={() => setCategory(c)}
-              >
-                {c}
-              </button>
-            ))}
-          </div>
-          <label className="sort-label">
-            Sort
-            <select value={sort} onChange={(e) => setSort(e.target.value)}>
-              <option value="raised">Most raised</option>
-              <option value="progress">% funded</option>
-              <option value="goal">Largest goal</option>
-              <option value="newest">Newest</option>
-            </select>
-          </label>
-        </div>
-
-        {loading && <p className="muted">Loading campaigns…</p>}
-        {error && <div className="message error">{error}</div>}
-        {!loading && !error && sorted.length === 0 && (
-          <div className="panel empty-panel">
-            <p>No campaigns match your filters.</p>
-          </div>
-        )}
-        {!loading && !error && sorted.length > 0 && (
+        <CampaignFilters values={filters} onChange={updateFilter} />
+        {loading && <LoadingState />}
+        {error && <ErrorState message={error} onRetry={load} />}
+        {!loading && !error && campaigns.length === 0 && <EmptyState title="No campaigns found">Try changing your search or category.</EmptyState>}
+        {!loading && !error && campaigns.length > 0 && (
           <div className="grid">
-            {sorted.map((campaign) => (
+            {campaigns.map((campaign) => (
               <CampaignCard key={campaign.id} campaign={campaign} onDonate={setSelected} />
             ))}
           </div>
         )}
+        <Pagination page={meta.page || filters.page} totalPages={meta.totalPages || 1} onPageChange={(page) => updateFilter("page", String(page))} />
       </section>
 
       {selected && (
