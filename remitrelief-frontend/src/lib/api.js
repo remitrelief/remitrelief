@@ -119,10 +119,17 @@ export function submitCampaign(id) {
   return request(`/campaigns/${id}/submit`, { method: "POST", body: JSON.stringify({}) });
 }
 
-export function transitionCampaign(id, status, reason) {
+export function transitionCampaign(id, status, { reason, escrowAddress, usdcIssuer } = {}) {
   return request(`/campaigns/${id}/transitions/${status}`, {
     method: "POST",
-    body: JSON.stringify({ reason }),
+    body: JSON.stringify({ reason, escrowAddress, usdcIssuer }),
+  });
+}
+
+export function bindCampaignEscrow(id, { escrowAddress, usdcIssuer } = {}) {
+  return request(`/campaigns/${id}/escrow`, {
+    method: "POST",
+    body: JSON.stringify({ escrowAddress, usdcIssuer }),
   });
 }
 

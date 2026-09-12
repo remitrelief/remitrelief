@@ -379,6 +379,17 @@ export const campaignsRepo = {
     });
     return this.getById(id);
   },
+
+  async setEscrowBinding(id, { escrowAddress, usdcIssuer = null }) {
+    await getPrisma().campaign.update({
+      where: { id },
+      data: {
+        escrowAddress,
+        ...(usdcIssuer !== undefined ? { usdcIssuer: usdcIssuer || null } : {}),
+      },
+    });
+    return this.getById(id);
+  },
 };
 
 export const milestonesRepo = {
@@ -410,6 +421,20 @@ export const milestonesRepo = {
   async findById(id) {
     const row = await getPrisma().milestone.findUnique({ where: { id } });
     return row ? mapMilestone(row) : null;
+  },
+  async markVerifiedByIndex(campaignId, milestoneIndex) {
+    const row = await getPrisma().milestone.updateMany({
+      where: { campaignId, index: Number(milestoneIndex) },
+      data: { verified: true, status: "COMPLETED" },
+    });
+    return row.count;
+  },
+  async markReleasedByIndex(campaignId, milestoneIndex) {
+    const row = await getPrisma().milestone.updateMany({
+      where: { campaignId, index: Number(milestoneIndex) },
+      data: { released: true, verified: true, status: "COMPLETED" },
+    });
+    return row.count;
   },
 };
 

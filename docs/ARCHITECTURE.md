@@ -1,4 +1,4 @@
-# RemitRelief Architecture (Phase 4)
+# RemitRelief Architecture (Phase 5)
 
 ```text
 React Frontend (WalletContext + AuthContext)
@@ -10,7 +10,7 @@ Express API (helmet, CORS allowlist, cookies)
 Auth + Authorization middleware
         │
         ▼
-Controllers → Domain services (lifecycle, validation, authorization, progress)
+Controllers → Domain services (lifecycle, escrow bind, donations, milestones)
         │
         ├──────────────────────┐
         ▼                      ▼
@@ -39,6 +39,7 @@ state transitions, editability, and visibility before repositories run.
 Route → Controller → Campaign Service → Repository → Prisma → PostgreSQL
                          │
                          ├── lifecycle transition matrix
+                         ├── escrow bind (pre-deployed TESTNET address)
                          ├── validation and decimal-string money rules
                          ├── owner / organization / ADMIN authorization
                          └── audit records
@@ -52,10 +53,22 @@ Public campaign progress counts only qualifying `ON_CHAIN` donations marked as
 verified. Demo/application donations remain identifiable and are not presented
 as verified funds.
 
+## Escrow binding (Phase 5)
+
+Admins bind a pre-deployed TESTNET escrow contract ID to an `APPROVED` campaign
+(`POST /api/campaigns/:id/escrow`). Activation outside `DEMO_MODE` requires that
+binding. The app does **not** deploy or initialize new escrow instances in this
+phase.
+
+Donation prepare/record use the **server-side** `campaign.escrowAddress` only.
+Client-supplied escrow addresses are ignored.
+
 ## Auth
 
 Wallet signature proves ownership. Sessions are server-side rows; cookie carries an opaque token; DB stores **SHA-256 hash** only.
 
 ## Blockchain vs database
 
-PostgreSQL may store transaction hashes and ledger events. Confirmation of on-chain success remains the Soroban verification path in `src/blockchain/soroban/`.
+PostgreSQL may store transaction hashes, ledger events, and
+`BlockchainTransaction.contractAddress` for deposits. Confirmation of on-chain
+success remains the Soroban verification path in `src/blockchain/soroban/`.

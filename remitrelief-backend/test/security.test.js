@@ -259,18 +259,31 @@ describe("donation recording security", () => {
     const { resetConfigCache } = await import("../src/config.js");
     resetConfigCache();
     const { recordVerifiedDonation } = await import("../src/services/donationsService.js");
-    const { campaignsRepo } = await import("../src/repositories/index.js");
+    const { campaignsRepo, usersRepo } = await import("../src/repositories/index.js");
+    const { StrKey } = await import("@stellar/stellar-sdk");
+    const { randomBytes } = await import("node:crypto");
 
+    const owner = await usersRepo.upsertFromLogin(Keypair.random().publicKey());
     const campaign = await campaignsRepo.create({
-      name: "Escrow Gate Test Auth",
-      location: "Testnet",
-      goal: 1000,
-      description: "test",
-      category: "Relief",
-      recipientName: "Test Org",
-      milestones: [{ label: "Stage 1", amount: 1000 }],
-      escrowAddress: "CCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAKWX",
+      title: "Escrow Gate Test Auth",
+      shortDescription: "Gate test",
+      description: "Rejects on-chain donation without txHash",
+      category: "COMMUNITY",
+      goalAmount: "1000",
+      currency: "USDC",
+      deadline: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+      visibility: "PUBLIC",
+      ownerId: owner.id,
+      ownerWallet: owner.walletAddress || owner.publicKey,
+      recipientId: owner.id,
+      milestones: [{ title: "Stage 1", targetAmount: "1000", sequence: 0 }],
     });
+    const escrowAddress = StrKey.encodeContract(randomBytes(32));
+    await campaignsRepo.setEscrowBinding(campaign.id, { escrowAddress });
+    await campaignsRepo.transition(campaign.id, "SUBMITTED");
+    await campaignsRepo.transition(campaign.id, "UNDER_REVIEW");
+    await campaignsRepo.transition(campaign.id, "APPROVED");
+    await campaignsRepo.transition(campaign.id, "ACTIVE");
 
     await assert.rejects(
       () =>
@@ -281,7 +294,7 @@ describe("donation recording security", () => {
         }),
       (err) =>
         err.code === "TRANSACTION_NOT_VERIFIED" ||
-        err.code === "CAMPAIGN_INVALID_STATE"
+        err.code === "CAMPAIGN_NOT_ACTIVE"
     );
   });
 });

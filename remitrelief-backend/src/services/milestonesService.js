@@ -1,7 +1,7 @@
 import { assertDemoModeAllowed, requireInternalApiKey } from "../config.js";
 import { AppError, ErrorCodes } from "../lib/errors.js";
 import { logger } from "../lib/logger.js";
-import { campaignsRepo, ledgerRepo } from "../repositories/index.js";
+import { campaignsRepo, ledgerRepo, milestonesRepo } from "../repositories/index.js";
 import {
   buildVerifyMilestoneXdr,
   releaseMilestoneFunds,
@@ -9,6 +9,21 @@ import {
   submitSignedXdr,
   verifyMilestoneVerificationTransaction,
 } from "../blockchain/soroban/index.js";
+
+async function syncMilestoneVerified(campaign, milestoneIndex) {
+  if (!campaign?.id) return;
+  await milestonesRepo.markVerifiedByIndex(campaign.id, milestoneIndex);
+  const next = Math.min(
+    Number(campaign.milestonesTotal),
+    Math.max(Number(campaign.milestonesVerified), Number(milestoneIndex) + 1)
+  );
+  await campaignsRepo.setMilestonesVerified(campaign.id, next);
+}
+
+async function syncMilestoneReleased(campaign, milestoneIndex) {
+  if (!campaign?.id) return;
+  await milestonesRepo.markReleasedByIndex(campaign.id, milestoneIndex);
+}
 
 export async function prepareVerify({ escrowAddress, milestoneIndex, verifierPublicKey }) {
   if (!escrowAddress || milestoneIndex === undefined || !verifierPublicKey) {
@@ -35,17 +50,14 @@ export async function verifyMilestone({
 }) {
   const cid = campaignId || id;
   const campaign = await campaignsRepo.getById(cid);
-  const wantsDemo = Boolean(demo) || !escrowAddress;
+  const boundEscrow = escrowAddress || campaign?.escrowAddress;
+  const wantsDemo = Boolean(demo) || !boundEscrow;
 
   if (wantsDemo) {
     assertDemoModeAllowed();
     const label = campaign?.milestoneLabels?.[Number(milestoneIndex)]?.label;
     if (campaign) {
-      const next = Math.min(
-        Number(campaign.milestonesTotal),
-        Math.max(Number(campaign.milestonesVerified), Number(milestoneIndex) + 1)
-      );
-      await campaignsRepo.setMilestonesVerified(campaign.id, next);
+      await syncMilestoneVerified(campaign, milestoneIndex);
     }
     const event = await ledgerRepo.append({
       type: "verify",
@@ -80,13 +92,13 @@ export async function verifyMilestone({
 
   verifyMilestoneVerificationTransaction({
     signedXdr: verifierSignedXDR,
-    escrowAddress,
+    escrowAddress: boundEscrow,
     milestoneIndex: Number(milestoneIndex),
     verifierPublicKey,
   });
 
   logger.info("Submitting verified milestone XDR", {
-    escrowAddress,
+    escrowAddress: boundEscrow,
     milestoneIndex,
     verifierPublicKey,
   });
@@ -94,11 +106,7 @@ export async function verifyMilestone({
   const result = await submitSignedXdr(verifierSignedXDR);
 
   if (campaign) {
-    const next = Math.min(
-      Number(campaign.milestonesTotal),
-      Math.max(Number(campaign.milestonesVerified), Number(milestoneIndex) + 1)
-    );
-    await campaignsRepo.setMilestonesVerified(campaign.id, next);
+    await syncMilestoneVerified(campaign, milestoneIndex);
   }
 
   const event = await ledgerRepo.append({
@@ -117,7 +125,7 @@ export async function verifyMilestone({
   if (autoRelease) {
     releaseResult = await releaseMilestone({
       id,
-      escrowAddress,
+      escrowAddress: boundEscrow,
       milestoneIndex,
       campaignId: cid,
       amount: campaign?.milestoneLabels?.[Number(milestoneIndex)]?.amount,
@@ -151,10 +159,15 @@ export async function releaseMilestone({
   operatorAuthorized = false,
 }) {
   const cid = campaignId || id;
-  const wantsDemo = Boolean(demo) || !escrowAddress;
+  const campaign = await campaignsRepo.getById(cid);
+  const boundEscrow = escrowAddress || campaign?.escrowAddress;
+  const wantsDemo = Boolean(demo) || !boundEscrow;
 
   if (wantsDemo) {
     assertDemoModeAllowed();
+    if (campaign) {
+      await syncMilestoneReleased(campaign, milestoneIndex);
+    }
     const event = await ledgerRepo.append({
       type: "release",
       campaignId: cid,
@@ -168,7 +181,7 @@ export async function releaseMilestone({
     return { milestoneId: id, released: true, demo: true, event };
   }
 
-  if (milestoneIndex === undefined || !escrowAddress) {
+  if (milestoneIndex === undefined || !boundEscrow) {
     throw new AppError(ErrorCodes.INVALID_REQUEST, "missing required fields");
   }
 
@@ -176,11 +189,15 @@ export async function releaseMilestone({
     requireInternalApiKey(internalApiKey);
   }
 
-  logger.info("Releasing milestone funds", { escrowAddress, milestoneIndex });
+  logger.info("Releasing milestone funds", { escrowAddress: boundEscrow, milestoneIndex });
   const result = await releaseMilestoneFunds({
-    escrowAddress,
+    escrowAddress: boundEscrow,
     milestoneIndex: Number(milestoneIndex),
   });
+
+  if (campaign) {
+    await syncMilestoneReleased(campaign, milestoneIndex);
+  }
 
   const event = await ledgerRepo.append({
     type: "release",

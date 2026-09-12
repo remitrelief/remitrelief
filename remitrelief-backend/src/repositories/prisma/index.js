@@ -440,6 +440,7 @@ export const donationsRepo = {
     message = "",
     verifiedOnChain = false,
     source = "application",
+    contractAddress = null,
   }) {
     const prisma = getPrisma();
     return prisma.$transaction(async (tx) => {
@@ -477,6 +478,7 @@ export const donationsRepo = {
             status: "CONFIRMED",
             campaignId,
             donationId: donation.id,
+            contractAddress: contractAddress || null,
             confirmedAt: new Date(),
           },
         });

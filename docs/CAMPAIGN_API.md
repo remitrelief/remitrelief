@@ -84,6 +84,34 @@ COMPLETED → CLOSED
 Rejection requires `{ "reason": "..." }`. Owners cannot approve or activate
 their own campaigns.
 
+Outside `DEMO_MODE`, `APPROVED → ACTIVE` requires a bound escrow address
+(`ESCROW_REQUIRED` if missing). Optional body fields on activate:
+
+```json
+{ "escrowAddress": "C…", "usdcIssuer": "C…" }
+```
+
+## Escrow binding
+
+`POST /api/campaigns/:id/escrow` requires `ADMIN`.
+
+Binds a pre-deployed TESTNET escrow contract ID on an `APPROVED` campaign.
+Already-bound `ACTIVE` campaigns cannot change escrow. Body:
+
+```json
+{ "escrowAddress": "C…", "usdcIssuer": "optional-USDC-contract-id" }
+```
+
+Related error codes: `ESCROW_REQUIRED`, `ESCROW_INVALID`, `ESCROW_NOT_BOUND`,
+`ESCROW_MISMATCH`, `CAMPAIGN_NOT_ACTIVE`.
+
+## Donations
+
+- `POST /api/donations/prepare` — authenticated; body `{ "campaignId", "amount" }`.
+  Uses the campaign's bound escrow only; ignores client `escrowAddress`.
+- `POST /api/donations` — records verified on-chain deposits, or demo donations
+  only when `DEMO_MODE=true` and the campaign has no escrow.
+
 ## Milestones
 
 - `POST /api/campaigns/:id/milestones`
@@ -92,6 +120,9 @@ their own campaigns.
 Milestones are editable only while the campaign is a draft. Each has a title,
 description, positive decimal `targetAmount`, and deterministic `sequence`.
 Submission requires milestone totals to equal the campaign goal.
+
+After on-chain (or demo) verify/release, relational milestone `verified` /
+`released` flags and campaign counters are updated.
 
 ## Campaign updates
 
@@ -127,6 +158,6 @@ Errors use:
 ```
 
 Campaign-specific codes include access, editability, lifecycle, goal, deadline,
-category, currency, recipient, organization, milestone, update, and media
-errors. Descriptions and updates are plain text and must be rendered as text,
-not injected HTML.
+category, currency, recipient, organization, milestone, update, media, and
+escrow errors. Descriptions and updates are plain text and must be rendered as
+text, not injected HTML.

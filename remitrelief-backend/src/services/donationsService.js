@@ -7,8 +7,12 @@ import {
   verifyDonationTransaction,
 } from "../blockchain/soroban/index.js";
 
-export async function prepareDonation({ escrowAddress, donorPublicKey, amount }) {
-  if (!escrowAddress || !donorPublicKey || amount == null) {
+/**
+ * Prepare an on-chain deposit against the campaign's bound escrow only.
+ * Client-supplied escrow addresses are ignored.
+ */
+export async function prepareDonation({ campaignId, donorPublicKey, amount }) {
+  if (!campaignId || !donorPublicKey || amount == null) {
     throw new AppError(ErrorCodes.INVALID_REQUEST, "missing required fields");
   }
   const amountNum = Number(amount);
@@ -16,19 +20,42 @@ export async function prepareDonation({ escrowAddress, donorPublicKey, amount })
     throw new AppError(ErrorCodes.INVALID_REQUEST, "amount must be > 0");
   }
 
+  const campaign = await campaignsRepo.getById(campaignId);
+  if (!campaign) {
+    throw new AppError(ErrorCodes.CAMPAIGN_NOT_FOUND, "campaign not found");
+  }
+  if (campaign.status !== "ACTIVE") {
+    throw new AppError(
+      ErrorCodes.CAMPAIGN_NOT_ACTIVE,
+      "Donations are accepted only for active campaigns"
+    );
+  }
+  if (!campaign.escrowAddress) {
+    throw new AppError(
+      ErrorCodes.ESCROW_NOT_BOUND,
+      "Campaign has no bound escrow address"
+    );
+  }
+
   const amountStroops = Math.round(amountNum * 10 ** loadConfig().stellar.usdcDecimals);
   const { unsignedXdr } = await buildDepositXdr({
-    escrowAddress,
+    escrowAddress: campaign.escrowAddress,
     donorPublicKey,
     amountStroops,
   });
-  return { unsignedXdr, amountStroops, amountUsd: amountNum };
+  return {
+    unsignedXdr,
+    amountStroops,
+    amountUsd: amountNum,
+    escrowAddress: campaign.escrowAddress,
+    campaignId: campaign.id,
+  };
 }
 
 /**
  * Record a donation only after:
  * - demo path (DEMO_MODE + no escrow), OR
- * - successful on-chain deposit verification
+ * - successful on-chain deposit verification against the bound escrow
  */
 export async function recordVerifiedDonation({
   campaignId,
@@ -53,7 +80,7 @@ export async function recordVerifiedDonation({
   }
   if (campaign.status !== "ACTIVE") {
     throw new AppError(
-      ErrorCodes.CAMPAIGN_INVALID_STATE,
+      ErrorCodes.CAMPAIGN_NOT_ACTIVE,
       "Donations are accepted only for active campaigns"
     );
   }
@@ -63,11 +90,22 @@ export async function recordVerifiedDonation({
     throw new AppError(ErrorCodes.INVALID_REQUEST, "amount must be > 0");
   }
 
-  const wantsDemo = Boolean(demo) || !campaign.escrowAddress;
+  const cfg = loadConfig();
+  const hasEscrow = Boolean(campaign.escrowAddress);
 
-  if (wantsDemo) {
+  if (!hasEscrow) {
+    if (!cfg.demoMode) {
+      throw new AppError(
+        ErrorCodes.ESCROW_NOT_BOUND,
+        "Campaign has no bound escrow address"
+      );
+    }
     assertDemoModeAllowed();
-    logger.info("Recording demo donation", { campaignId, donor, amount: amountNum });
+    logger.info("Recording demo donation (non-verified)", {
+      campaignId,
+      donor,
+      amount: amountNum,
+    });
     return donationsRepo.create({
       campaignId,
       donor,
@@ -80,6 +118,14 @@ export async function recordVerifiedDonation({
     });
   }
 
+  // Bound escrow: always require on-chain verification (ignore client demo flag)
+  if (demo) {
+    throw new AppError(
+      ErrorCodes.INVALID_REQUEST,
+      "Demo donations are not allowed when an escrow is bound"
+    );
+  }
+
   if (!txHash) {
     throw new AppError(ErrorCodes.TRANSACTION_NOT_VERIFIED, "txHash required for on-chain donations");
   }
@@ -89,9 +135,13 @@ export async function recordVerifiedDonation({
     throw new AppError(ErrorCodes.DONATION_ALREADY_RECORDED, "donation already recorded for this tx");
   }
 
-  const amountStroops = Math.round(amountNum * 10 ** loadConfig().stellar.usdcDecimals);
+  const amountStroops = Math.round(amountNum * 10 ** cfg.stellar.usdcDecimals);
 
-  logger.info("Verifying donation transaction", { txHash, campaignId, escrow: campaign.escrowAddress });
+  logger.info("Verifying donation transaction", {
+    txHash,
+    campaignId,
+    escrow: campaign.escrowAddress,
+  });
   await verifyDonationTransaction({
     txHash,
     escrowAddress: campaign.escrowAddress,
@@ -108,6 +158,7 @@ export async function recordVerifiedDonation({
     message,
     verifiedOnChain: true,
     source: "on_chain",
+    contractAddress: campaign.escrowAddress,
   });
 }
 

@@ -548,6 +548,8 @@ export function createMilestone(campaignId, input) {
     amount: input.targetAmount,
     targetAmount: input.targetAmount,
     status: "PENDING",
+    verified: false,
+    released: false,
   };
   campaign.milestones.push(milestone);
   campaign.updatedAt = new Date().toISOString();
@@ -674,6 +676,45 @@ export function setMilestonesVerified(campaignId, count) {
   return { ...campaign };
 }
 
+export function setEscrowBinding(id, { escrowAddress, usdcIssuer = null }) {
+  const campaign = db.campaigns.find((item) => item.id === id);
+  if (!campaign) return null;
+  campaign.escrowAddress = escrowAddress;
+  if (usdcIssuer !== undefined) campaign.usdcIssuer = usdcIssuer || null;
+  campaign.updatedAt = new Date().toISOString();
+  saveState();
+  return normalizeCampaign(campaign);
+}
+
+export function markMilestoneVerified(campaignId, milestoneIndex) {
+  const campaign = db.campaigns.find((item) => item.id === campaignId);
+  if (!campaign) return null;
+  const milestone = campaign.milestones?.find(
+    (item) => Number(item.index ?? item.sequence) === Number(milestoneIndex)
+  );
+  if (!milestone) return null;
+  milestone.verified = true;
+  milestone.status = "COMPLETED";
+  campaign.updatedAt = new Date().toISOString();
+  saveState();
+  return { ...milestone, campaignId };
+}
+
+export function markMilestoneReleased(campaignId, milestoneIndex) {
+  const campaign = db.campaigns.find((item) => item.id === campaignId);
+  if (!campaign) return null;
+  const milestone = campaign.milestones?.find(
+    (item) => Number(item.index ?? item.sequence) === Number(milestoneIndex)
+  );
+  if (!milestone) return null;
+  milestone.verified = true;
+  milestone.released = true;
+  milestone.status = "COMPLETED";
+  campaign.updatedAt = new Date().toISOString();
+  saveState();
+  return { ...milestone, campaignId };
+}
+
 export function findDonationByTxHash(txHash) {
   if (!txHash) return null;
   return db.donations.find((d) => d.txHash === txHash) || null;
@@ -688,6 +729,7 @@ export function recordDonation({
   message = "",
   verifiedOnChain = false,
   source = "application",
+  contractAddress = null,
 }) {
   const entry = {
     id: uid("don"),
@@ -700,6 +742,7 @@ export function recordDonation({
     message: String(message || "").slice(0, 200),
     verifiedOnChain: Boolean(verifiedOnChain),
     source,
+    contractAddress: contractAddress || null,
   };
   db.donations.unshift(entry);
   if (verifiedOnChain && source === "on_chain") bumpRaised(campaignId, amount);

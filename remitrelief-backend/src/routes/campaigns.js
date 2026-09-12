@@ -17,6 +17,7 @@ import {
   updateCampaignAction,
   updateUpdateAction,
   updateMilestoneAction,
+  bindEscrowAction,
 } from "../controllers/campaignController.js";
 import { optionalAuth, requireAuth, requireRole } from "../middleware/auth.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
@@ -40,6 +41,12 @@ router.get("/:id", optionalAuth, asyncHandler(campaignDetail));
 router.patch("/:id", mutationLimiter, requireAuth, asyncHandler(updateCampaignAction));
 router.delete("/:id", mutationLimiter, requireAuth, asyncHandler(deleteCampaignAction));
 router.post("/:id/submit", mutationLimiter, requireAuth, asyncHandler(submitCampaignAction));
+router.post(
+  "/:id/escrow",
+  mutationLimiter,
+  requireRole(Roles.ADMIN),
+  asyncHandler(bindEscrowAction)
+);
 router.post(
   "/:id/transitions/:status",
   mutationLimiter,

@@ -14,9 +14,9 @@ router.post("/prepare", requireAuth, async (req, res) => {
   try {
     const body = req.body || {};
     const result = await prepareDonation({
-      escrowAddress: body.escrowAddress,
+      campaignId: body.campaignId,
       amount: body.amount,
-      // Identity from session only — ignore client donor fields
+      // Identity from session only — ignore client donor / escrow fields
       donorPublicKey: req.user.walletAddress,
     });
     res.json(result);

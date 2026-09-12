@@ -26,6 +26,7 @@ import {
   validateMilestones,
 } from "../validators/campaignValidator.js";
 import { mediaStorageService } from "./mediaStorageService.js";
+import { assertEscrowReadable } from "./escrowBindingService.js";
 
 function enrichFromChain(campaign, onChainBalance, milestones) {
   const enriched = { ...campaign };
@@ -238,11 +239,52 @@ export async function submitCampaign(id, actor) {
   return publicView(updated, actor);
 }
 
-export async function transitionCampaign(id, nextStatus, actor, reason) {
+export async function bindCampaignEscrow(id, { escrowAddress, usdcIssuer } = {}, actor) {
   if (!isAdmin(actor)) {
     throw new AppError(ErrorCodes.CAMPAIGN_ACCESS_DENIED, "Admin access required");
   }
   const campaign = await campaignsRepo.getById(id);
+  if (!campaign) throw new AppError(ErrorCodes.CAMPAIGN_NOT_FOUND, "Campaign not found");
+
+  if (campaign.status === "ACTIVE" && campaign.escrowAddress) {
+    throw new AppError(
+      ErrorCodes.CAMPAIGN_ALREADY_ACTIVE,
+      "Active campaigns cannot change a bound escrow address"
+    );
+  }
+  if (campaign.status !== "APPROVED") {
+    throw new AppError(
+      ErrorCodes.CAMPAIGN_INVALID_STATE,
+      "Escrow can only be bound on APPROVED campaigns"
+    );
+  }
+
+  const readable = await assertEscrowReadable(escrowAddress, campaign);
+  const cfg = loadConfig();
+  const updated = await campaignsRepo.setEscrowBinding(campaign.id, {
+    escrowAddress: readable.escrowAddress,
+    usdcIssuer:
+      usdcIssuer !== undefined
+        ? usdcIssuer
+        : cfg.usdcContractId || campaign.usdcIssuer || null,
+  });
+  await auditCampaign("ESCROW_BOUND", updated, actor, {
+    escrowAddress: updated.escrowAddress,
+  });
+  return publicView(updated, actor);
+}
+
+export async function transitionCampaign(
+  id,
+  nextStatus,
+  actor,
+  reason,
+  { escrowAddress, usdcIssuer } = {}
+) {
+  if (!isAdmin(actor)) {
+    throw new AppError(ErrorCodes.CAMPAIGN_ACCESS_DENIED, "Admin access required");
+  }
+  let campaign = await campaignsRepo.getById(id);
   if (!campaign) throw new AppError(ErrorCodes.CAMPAIGN_NOT_FOUND, "Campaign not found");
   assertCampaignTransition(campaign.status, nextStatus);
   if (nextStatus === "REJECTED" && String(reason || "").trim().length < 5) {
@@ -254,6 +296,19 @@ export async function transitionCampaign(id, nextStatus, actor, reason) {
   ) {
     throw new AppError(ErrorCodes.CAMPAIGN_INVALID_DEADLINE, "Deadline must be in the future");
   }
+
+  if (nextStatus === "ACTIVE" && escrowAddress) {
+    await bindCampaignEscrow(campaign.id, { escrowAddress, usdcIssuer }, actor);
+    campaign = await campaignsRepo.getById(id);
+  }
+
+  if (nextStatus === "ACTIVE" && !campaign.escrowAddress && !loadConfig().demoMode) {
+    throw new AppError(
+      ErrorCodes.ESCROW_REQUIRED,
+      "Bind a testnet escrow address before activating this campaign"
+    );
+  }
+
   const updated = await campaignsRepo.transition(
     campaign.id,
     nextStatus,
@@ -271,6 +326,9 @@ export async function transitionCampaign(id, nextStatus, actor, reason) {
   };
   await auditCampaign(actions[nextStatus], updated, actor, {
     ...(nextStatus === "REJECTED" ? { reason: updated.rejectionReason } : {}),
+    ...(nextStatus === "ACTIVE" && updated.escrowAddress
+      ? { escrowAddress: updated.escrowAddress }
+      : {}),
   });
   return publicView(updated, actor);
 }

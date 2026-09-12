@@ -17,6 +17,8 @@ export default function DonateModal({ campaign, onClose, onSuccess }) {
   const [status, setStatus] = useState("idle");
   const [feedback, setFeedback] = useState("");
 
+  const hasEscrow = Boolean(campaign.escrowAddress);
+
   async function handleDonate() {
     const donationAmount = Number(amount);
     if (!donationAmount || donationAmount <= 0) {
@@ -31,13 +33,11 @@ export default function DonateModal({ campaign, onClose, onSuccess }) {
       const donorPublicKey = await ensureAuthenticated();
 
       let txHash = null;
-      const hasEscrow = Boolean(campaign.escrowAddress);
 
       if (hasEscrow) {
         setStatus("preparing");
         const { unsignedXdr } = await prepareDeposit({
-          escrowAddress: campaign.escrowAddress,
-          donorPublicKey,
+          campaignId: campaign.id,
           amount: donationAmount,
         });
 
@@ -54,10 +54,8 @@ export default function DonateModal({ campaign, onClose, onSuccess }) {
 
       await recordDonation({
         campaignId: campaign.id,
-        donor: donorPublicKey,
         amount: donationAmount,
         txHash,
-        status: hasEscrow ? "escrowed" : "demo-escrowed",
         message,
         demo: !hasEscrow,
       });
@@ -65,7 +63,7 @@ export default function DonateModal({ campaign, onClose, onSuccess }) {
       setStatus("done");
       const okMsg = hasEscrow
         ? "Donation deposited into escrow."
-        : "Demo donation recorded — deploy escrow for on-chain settlement.";
+        : "Demo donation recorded (not verified on-chain) — bind an escrow for settlement.";
       setFeedback(okMsg);
       toast.push(`Donated $${donationAmount} to ${title}`, "success");
       if (typeof onSuccess === "function") {
@@ -95,9 +93,9 @@ export default function DonateModal({ campaign, onClose, onSuccess }) {
         </div>
 
         <p className="modal-copy">
-          {campaign.escrowAddress
-            ? "Your USDC is deposited into the Soroban escrow and released only after verified milestones."
-            : "Demo mode — donations are recorded locally until an escrow contract is deployed."}
+          {hasEscrow
+            ? "Your USDC is deposited into the Soroban escrow bound to this campaign and released only after verified milestones."
+            : "Demo path — no escrow is bound. Donations are recorded locally and labeled non-verified."}
         </p>
 
         <div className="amount-presets" role="group" aria-label="Suggested amounts">

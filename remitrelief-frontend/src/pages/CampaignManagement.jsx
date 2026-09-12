@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import CampaignForm from "../components/CampaignForm";
+import EscrowStatus from "../components/EscrowStatus";
 import {
   CampaignBadge,
   ErrorState,
@@ -9,6 +10,7 @@ import {
 } from "../components/CampaignUI";
 import {
   addCampaignMedia,
+  bindCampaignEscrow,
   createCampaignUpdate,
   deleteCampaign,
   deleteCampaignMedia,
@@ -37,12 +39,15 @@ export default function CampaignManagement() {
   const [updateDraft, setUpdateDraft] = useState({ title: "", content: "" });
   const [mediaDraft, setMediaDraft] = useState({ url: "", altText: "", type: "IMAGE" });
   const [reason, setReason] = useState("");
+  const [escrowDraft, setEscrowDraft] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
-      setCampaign(await fetchCampaign(id));
+      const result = await fetchCampaign(id);
+      setCampaign(result);
+      setEscrowDraft(result.escrowAddress || "");
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -68,6 +73,8 @@ export default function CampaignManagement() {
   if (!campaign) return null;
 
   const capabilities = campaign.capabilities || {};
+  const canBindEscrow =
+    capabilities.canModerate && campaign.status === "APPROVED" && !campaign.escrowAddress;
 
   return (
     <div className="page">
@@ -93,6 +100,41 @@ export default function CampaignManagement() {
       {!capabilities.canEdit && <section className="panel"><h2>Campaign fields are locked</h2><p className="muted">Only draft campaigns can be edited. Available actions are shown below.</p></section>}
 
       <section className="panel">
+        <h2>Escrow binding</h2>
+        <EscrowStatus campaign={campaign} />
+        {canBindEscrow && (
+          <div className="form-grid">
+            <label className="input-label full">
+              Testnet escrow contract ID
+              <input
+                value={escrowDraft}
+                onChange={(event) => setEscrowDraft(event.target.value)}
+                placeholder="C…"
+                spellCheck={false}
+              />
+            </label>
+            <button
+              type="button"
+              onClick={() =>
+                run(
+                  () => bindCampaignEscrow(campaign.id, { escrowAddress: escrowDraft.trim() }),
+                  "Escrow bound"
+                )
+              }
+            >
+              Bind escrow
+            </button>
+          </div>
+        )}
+        {capabilities.canModerate && campaign.status === "APPROVED" && !campaign.escrowAddress && (
+          <p className="muted">
+            Outside DEMO_MODE, activation requires a bound escrow. You can also pass the
+            address when activating.
+          </p>
+        )}
+      </section>
+
+      <section className="panel">
         <h2>Lifecycle actions</h2>
         <div className="management-actions">
           {capabilities.canSubmit && <button type="button" onClick={() => run(() => submitCampaign(campaign.id), "Campaign submitted")}>Submit for review</button>}
@@ -101,9 +143,35 @@ export default function CampaignManagement() {
             await deleteCampaign(campaign.id);
             navigate("/dashboard/campaigns");
           }}>Delete draft</button>}
-          {capabilities.canModerate && (NEXT_STATUSES[campaign.status] || []).map((status) => <button key={status} type="button" className="secondary" onClick={() => run(() => transitionCampaign(campaign.id, status, status === "REJECTED" ? reason : undefined), `Campaign moved to ${status.toLowerCase()}`)}>{status.replaceAll("_", " ")}</button>)}
+          {capabilities.canModerate && (NEXT_STATUSES[campaign.status] || []).map((status) => (
+            <button
+              key={status}
+              type="button"
+              className="secondary"
+              onClick={() =>
+                run(
+                  () =>
+                    transitionCampaign(campaign.id, status, {
+                      reason: status === "REJECTED" ? reason : undefined,
+                      escrowAddress:
+                        status === "ACTIVE" && escrowDraft.trim() && !campaign.escrowAddress
+                          ? escrowDraft.trim()
+                          : undefined,
+                    }),
+                  `Campaign moved to ${status.toLowerCase()}`
+                )
+              }
+            >
+              {status.replaceAll("_", " ")}
+            </button>
+          ))}
         </div>
-        {capabilities.canModerate && NEXT_STATUSES[campaign.status]?.includes("REJECTED") && <label className="input-label moderation-reason">Rejection reason<input value={reason} onChange={(event) => setReason(event.target.value)} minLength="5" /></label>}
+        {capabilities.canModerate && NEXT_STATUSES[campaign.status]?.includes("REJECTED") && (
+          <label className="input-label moderation-reason">
+            Rejection reason
+            <input value={reason} onChange={(event) => setReason(event.target.value)} minLength="5" />
+          </label>
+        )}
       </section>
 
       {capabilities.canPostUpdate && <section className="panel">

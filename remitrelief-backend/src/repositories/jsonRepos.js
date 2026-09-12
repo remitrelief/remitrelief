@@ -8,12 +8,17 @@ export const campaignsRepo = {
   transition: async (id, status, reason) => store.transitionCampaign(id, status, reason),
   deleteDraft: async (id) => store.deleteDraftCampaign(id),
   setMilestonesVerified: async (id, count) => store.setMilestonesVerified(id, count),
+  setEscrowBinding: async (id, binding) => store.setEscrowBinding(id, binding),
 };
 
 export const milestonesRepo = {
   create: async (campaignId, input) => store.createMilestone(campaignId, input),
   update: async (id, input) => store.updateMilestone(id, input),
   findById: async (id) => store.getMilestone(id),
+  markVerifiedByIndex: async (campaignId, milestoneIndex) =>
+    store.markMilestoneVerified(campaignId, milestoneIndex),
+  markReleasedByIndex: async (campaignId, milestoneIndex) =>
+    store.markMilestoneReleased(campaignId, milestoneIndex),
 };
 
 export const campaignUpdatesRepo = {

@@ -172,6 +172,8 @@ export function loadConfig({ fresh = false } = {}) {
     }),
 
     demoEscrowContractId: envRequired("DEMO_ESCROW_CONTRACT_ID", { allowEmpty: true }) || null,
+    /** Optional USDC / SAC contract id used when binding escrow metadata */
+    usdcContractId: envRequired("USDC_CONTRACT_ID", { allowEmpty: true }) || null,
   });
 
   cached = config;

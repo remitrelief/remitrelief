@@ -1,6 +1,7 @@
 import {
   addCampaignMedia,
   addCampaignMilestone,
+  bindCampaignEscrow,
   createCampaign,
   createCampaignUpdate,
   deleteDraftCampaign,
@@ -62,7 +63,25 @@ export async function transitionCampaignAction(req, res) {
       req.params.id,
       String(req.params.status).toUpperCase(),
       req.user,
-      req.body?.reason
+      req.body?.reason,
+      {
+        escrowAddress: req.body?.escrowAddress,
+        usdcIssuer: req.body?.usdcIssuer,
+      }
+    )
+  );
+}
+
+export async function bindEscrowAction(req, res) {
+  return send(
+    res,
+    await bindCampaignEscrow(
+      req.params.id,
+      {
+        escrowAddress: req.body?.escrowAddress,
+        usdcIssuer: req.body?.usdcIssuer,
+      },
+      req.user
     )
   );
 }
