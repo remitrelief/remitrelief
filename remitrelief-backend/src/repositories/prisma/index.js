@@ -10,6 +10,7 @@ export {
   milestonesRepo,
   campaignUpdatesRepo,
   campaignMediaRepo,
+  proofsRepo,
 } from "./campaignRepos.js";
 
 function parseKeys(...envNames) {

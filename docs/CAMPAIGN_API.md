@@ -112,6 +112,21 @@ Related error codes: `ESCROW_REQUIRED`, `ESCROW_INVALID`, `ESCROW_NOT_BOUND`,
 - `POST /api/donations` — records verified on-chain deposits, or demo donations
   only when `DEMO_MODE=true` and the campaign has no escrow.
 
+## Proof, verify, and release
+
+- `POST /api/milestones/:id/proof` — NGO/ADMIN; body
+  `{ "milestoneIndex", "note", "evidenceUrls?: string[]" }`. Requires ACTIVE
+  campaign. Note min length 10.
+- `GET /api/milestones/:id/proofs` — list proofs (optional `?milestoneIndex=`).
+- `POST /api/milestones/:id/prepare-verify` — NGO/ADMIN; uses bound escrow and
+  requires a prior proof.
+- `POST /api/milestones/:id/verify` — NGO/ADMIN; `autoRelease` defaults false.
+- `POST /api/milestones/:id/release` — ADMIN or internal API key; requires prior
+  verify when escrow is bound.
+
+Related codes: `PROOF_REQUIRED`, `PROOF_INVALID`, `MILESTONE_ALREADY_VERIFIED`,
+`MILESTONE_NOT_VERIFIED`, `MILESTONE_ALREADY_RELEASED`.
+
 ## Milestones
 
 - `POST /api/campaigns/:id/milestones`

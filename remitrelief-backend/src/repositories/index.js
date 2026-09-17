@@ -23,6 +23,7 @@ const impl =
 
 export const campaignsRepo = impl.campaignsRepo;
 export const milestonesRepo = impl.milestonesRepo;
+export const proofsRepo = impl.proofsRepo;
 export const campaignUpdatesRepo = impl.campaignUpdatesRepo;
 export const campaignMediaRepo = impl.campaignMediaRepo;
 export const donationsRepo = impl.donationsRepo;

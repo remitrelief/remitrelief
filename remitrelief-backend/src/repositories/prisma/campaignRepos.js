@@ -436,6 +436,75 @@ export const milestonesRepo = {
     });
     return row.count;
   },
+  async findByCampaignAndIndex(campaignId, milestoneIndex) {
+    const row = await getPrisma().milestone.findUnique({
+      where: {
+        campaignId_index: {
+          campaignId,
+          index: Number(milestoneIndex),
+        },
+      },
+    });
+    return row ? mapMilestone(row) : null;
+  },
+};
+
+function mapProof(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    campaignId: row.campaignId,
+    milestoneId: row.milestoneId,
+    milestoneIndex: row.milestoneIndex,
+    note: row.note,
+    evidenceUrls: Array.isArray(row.evidenceUrls) ? row.evidenceUrls : [],
+    submittedByWallet: row.submittedByWallet,
+    submittedByUserId: row.submittedByUserId,
+    status: row.status,
+    createdAt: iso(row.createdAt),
+    updatedAt: iso(row.updatedAt),
+  };
+}
+
+export const proofsRepo = {
+  async create(input) {
+    const row = await getPrisma().milestoneProof.create({
+      data: {
+        campaignId: input.campaignId,
+        milestoneId: input.milestoneId || null,
+        milestoneIndex: Number(input.milestoneIndex),
+        note: input.note,
+        evidenceUrls: input.evidenceUrls || [],
+        submittedByWallet: input.submittedByWallet,
+        submittedByUserId: input.submittedByUserId || null,
+        status: input.status || "SUBMITTED",
+      },
+    });
+    return mapProof(row);
+  },
+  async listByCampaign(campaignId, { milestoneIndex } = {}) {
+    const rows = await getPrisma().milestoneProof.findMany({
+      where: {
+        campaignId,
+        ...(milestoneIndex !== undefined
+          ? { milestoneIndex: Number(milestoneIndex) }
+          : {}),
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    return rows.map(mapProof);
+  },
+  async latestForMilestone(campaignId, milestoneIndex) {
+    const row = await getPrisma().milestoneProof.findFirst({
+      where: {
+        campaignId,
+        milestoneIndex: Number(milestoneIndex),
+        status: { in: ["SUBMITTED", "ACCEPTED"] },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    return mapProof(row);
+  },
 };
 
 export const campaignUpdatesRepo = {

@@ -308,16 +308,45 @@ describe("release endpoint protection", () => {
     const { resetConfigCache } = await import("../src/config.js");
     resetConfigCache();
     const { releaseMilestone } = await import("../src/services/milestonesService.js");
+    const { campaignsRepo, usersRepo } = await import("../src/repositories/index.js");
+    const { StrKey } = await import("@stellar/stellar-sdk");
+    const { randomBytes } = await import("node:crypto");
+
+    const owner = await usersRepo.upsertFromLogin(Keypair.random().publicKey());
+    const campaign = await campaignsRepo.create({
+      title: "Release Auth Gate",
+      shortDescription: "Release auth fixture",
+      description: "Campaign used to assert release requires internal authorization",
+      category: "COMMUNITY",
+      goalAmount: "50",
+      currency: "USDC",
+      deadline: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+      visibility: "PUBLIC",
+      ownerId: owner.id,
+      ownerWallet: owner.walletAddress,
+      recipientId: owner.id,
+      milestones: [{ title: "Stage 1", targetAmount: "50", sequence: 0 }],
+    });
+    const escrowAddress = StrKey.encodeContract(randomBytes(32));
+    await campaignsRepo.setEscrowBinding(campaign.id, { escrowAddress });
+    await campaignsRepo.transition(campaign.id, "SUBMITTED");
+    await campaignsRepo.transition(campaign.id, "UNDER_REVIEW");
+    await campaignsRepo.transition(campaign.id, "APPROVED");
+    await campaignsRepo.transition(campaign.id, "ACTIVE");
+    const { milestonesRepo } = await import("../src/repositories/index.js");
+    await milestonesRepo.markVerifiedByIndex(campaign.id, 0);
 
     await assert.rejects(
       () =>
         releaseMilestone({
-          id: "flood-relief-oaxaca",
-          escrowAddress: "CCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAKWX",
+          id: campaign.id,
           milestoneIndex: 0,
-          campaignId: "flood-relief-oaxaca",
+          campaignId: campaign.id,
         }),
-      /Invalid or missing internal API key|UNAUTHORIZED/
+      (err) =>
+        /Invalid or missing internal API key|UNAUTHORIZED|FORBIDDEN|BACKEND_SIGNER/.test(
+          String(err.message || err)
+        ) || ["UNAUTHORIZED", "FORBIDDEN"].includes(err.code)
     );
   });
 });

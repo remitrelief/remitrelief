@@ -96,6 +96,12 @@ enum MilestoneStatus {
   CANCELLED
 }
 
+enum MilestoneProofStatus {
+  SUBMITTED
+  ACCEPTED
+  REJECTED
+}
+
 enum CampaignUpdateStatus {
   DRAFT
   PUBLISHED
@@ -285,6 +291,7 @@ model Campaign {
   media         CampaignMedia[]
   ledgerEvents  LedgerEvent[]
   transactions  BlockchainTransaction[]
+  proofs        MilestoneProof[]
 
   @@index([status])
   @@index([category])
@@ -310,10 +317,32 @@ model Milestone {
   updatedAt  DateTime @updatedAt @map("updated_at")
 
   campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  proofs   MilestoneProof[]
 
   @@unique([campaignId, index])
   @@index([campaignId])
   @@map("milestones")
+}
+
+model MilestoneProof {
+  id                String               @id @default(cuid())
+  campaignId        String               @map("campaign_id")
+  milestoneId       String?              @map("milestone_id")
+  milestoneIndex    Int                  @map("milestone_index")
+  note              String
+  evidenceUrls      Json                 @default("[]") @map("evidence_urls")
+  submittedByWallet String               @map("submitted_by_wallet")
+  submittedByUserId String?              @map("submitted_by_user_id")
+  status            MilestoneProofStatus @default(SUBMITTED)
+  createdAt         DateTime             @default(now()) @map("created_at")
+  updatedAt         DateTime             @updatedAt @map("updated_at")
+
+  campaign  Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  milestone Milestone? @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+
+  @@index([campaignId, milestoneIndex])
+  @@index([milestoneId])
+  @@map("milestone_proofs")
 }
 
 model CampaignUpdate {

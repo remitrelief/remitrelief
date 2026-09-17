@@ -199,6 +199,22 @@ export function prepareVerify(campaignId, body) {
   });
 }
 
+export function submitProof(campaignId, body) {
+  return request(`/milestones/${campaignId}/proof`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function fetchMilestoneProofs(campaignId, params = {}) {
+  const qs = new URLSearchParams(
+    Object.fromEntries(
+      Object.entries(params).filter(([, value]) => value != null && value !== "")
+    )
+  ).toString();
+  return request(`/milestones/${campaignId}/proofs${qs ? `?${qs}` : ""}`);
+}
+
 export function submitVerify(campaignId, body) {
   return request(`/milestones/${campaignId}/verify`, {
     method: "POST",

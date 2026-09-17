@@ -233,6 +233,7 @@ const SEED = {
   organizationMembers: [],
   campaignUpdates: [],
   campaignMedia: [],
+  milestoneProofs: [],
   auditLogs: [],
   authChallenges: [],
   sessions: [],
@@ -270,6 +271,7 @@ function loadState() {
     if (!parsed.organizationMembers) parsed.organizationMembers = [];
     if (!parsed.campaignUpdates) parsed.campaignUpdates = [];
     if (!parsed.campaignMedia) parsed.campaignMedia = [];
+    if (!parsed.milestoneProofs) parsed.milestoneProofs = [];
     if (!parsed.auditLogs) parsed.auditLogs = [];
     if (DEMO_ESCROW) {
       const oaxaca = parsed.campaigns?.find((c) => c.id === "flood-relief-oaxaca");
@@ -713,6 +715,54 @@ export function markMilestoneReleased(campaignId, milestoneIndex) {
   campaign.updatedAt = new Date().toISOString();
   saveState();
   return { ...milestone, campaignId };
+}
+
+export function getMilestoneByCampaignIndex(campaignId, milestoneIndex) {
+  const campaign = db.campaigns.find((item) => item.id === campaignId);
+  if (!campaign) return null;
+  const milestone = campaign.milestones?.find(
+    (item) => Number(item.index ?? item.sequence) === Number(milestoneIndex)
+  );
+  return milestone ? { ...milestone, campaignId } : null;
+}
+
+export function createMilestoneProof(input) {
+  if (!db.milestoneProofs) db.milestoneProofs = [];
+  const entry = {
+    id: uid("proof"),
+    campaignId: input.campaignId,
+    milestoneId: input.milestoneId || null,
+    milestoneIndex: Number(input.milestoneIndex),
+    note: String(input.note || "").slice(0, 2000),
+    evidenceUrls: Array.isArray(input.evidenceUrls) ? input.evidenceUrls.slice(0, 10) : [],
+    submittedByWallet: input.submittedByWallet,
+    submittedByUserId: input.submittedByUserId || null,
+    status: input.status || "SUBMITTED",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  db.milestoneProofs.unshift(entry);
+  saveState();
+  return entry;
+}
+
+export function listMilestoneProofs(campaignId, { milestoneIndex } = {}) {
+  if (!db.milestoneProofs) return [];
+  return db.milestoneProofs.filter((item) => {
+    if (item.campaignId !== campaignId) return false;
+    if (milestoneIndex !== undefined && Number(item.milestoneIndex) !== Number(milestoneIndex)) {
+      return false;
+    }
+    return true;
+  });
+}
+
+export function latestMilestoneProof(campaignId, milestoneIndex) {
+  return (
+    listMilestoneProofs(campaignId, { milestoneIndex }).find((item) =>
+      ["SUBMITTED", "ACCEPTED"].includes(item.status)
+    ) || null
+  );
 }
 
 export function findDonationByTxHash(txHash) {

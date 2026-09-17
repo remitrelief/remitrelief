@@ -1,8 +1,10 @@
 import { Router } from "express";
 import {
   fetchOnChainMilestones,
+  listProofs,
   prepareVerify,
   releaseMilestone,
+  submitProof,
   verifyMilestone,
 } from "../services/milestonesService.js";
 import { requireOperatorOrInternalKey, requireRole } from "../middleware/auth.js";
@@ -12,6 +14,39 @@ import { logger } from "../lib/logger.js";
 
 const router = Router();
 
+router.post("/:id/proof", requireRole(Roles.NGO, Roles.ADMIN), async (req, res) => {
+  try {
+    const body = req.body || {};
+    const proof = await submitProof({
+      campaignId: body.campaignId || req.params.id,
+      milestoneIndex: body.milestoneIndex,
+      note: body.note || body.proofNote,
+      evidenceUrls: body.evidenceUrls,
+      actor: req.user,
+    });
+    res.status(201).json(proof);
+  } catch (err) {
+    logger.error("submit proof failed", { reason: err.message, code: err.code });
+    const { status, body } = toErrorResponse(err);
+    res.status(status).json(body);
+  }
+});
+
+router.get("/:id/proofs", async (req, res) => {
+  try {
+    const proofs = await listProofs(req.params.id, {
+      milestoneIndex:
+        req.query.milestoneIndex !== undefined
+          ? Number(req.query.milestoneIndex)
+          : undefined,
+    });
+    res.json(proofs);
+  } catch (err) {
+    const { status, body } = toErrorResponse(err);
+    res.status(status).json(body);
+  }
+});
+
 router.post(
   "/:id/prepare-verify",
   requireRole(Roles.NGO, Roles.ADMIN),
@@ -19,7 +54,7 @@ router.post(
     try {
       const body = req.body || {};
       const result = await prepareVerify({
-        escrowAddress: body.escrowAddress,
+        campaignId: body.campaignId || req.params.id,
         milestoneIndex: body.milestoneIndex,
         verifierPublicKey: req.user.walletAddress,
       });
@@ -37,13 +72,14 @@ router.post("/:id/verify", requireRole(Roles.NGO, Roles.ADMIN), async (req, res)
     const body = req.body || {};
     const result = await verifyMilestone({
       id: req.params.id,
+      // Client escrow ignored for binding; mismatch still rejected inside service
       escrowAddress: body.escrowAddress,
       milestoneIndex: body.milestoneIndex,
       verifierSignedXDR: body.verifierSignedXDR,
-      campaignId: body.campaignId,
+      campaignId: body.campaignId || req.params.id,
       proofNote: body.proofNote,
       demo: body.demo,
-      autoRelease: body.autoRelease,
+      autoRelease: body.autoRelease === true,
       verifierPublicKey: req.user.walletAddress,
     });
     res.json(result);
@@ -61,7 +97,7 @@ router.post("/:id/release", requireOperatorOrInternalKey, async (req, res) => {
       id: req.params.id,
       escrowAddress: req.body?.escrowAddress,
       milestoneIndex: req.body?.milestoneIndex,
-      campaignId: req.body?.campaignId,
+      campaignId: req.body?.campaignId || req.params.id,
       amount: req.body?.amount,
       demo: req.body?.demo,
       internalApiKey,

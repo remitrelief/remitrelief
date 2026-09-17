@@ -1,4 +1,4 @@
-# RemitRelief Architecture (Phase 5)
+# RemitRelief Architecture (Phase 6)
 
 ```text
 React Frontend (WalletContext + AuthContext)
@@ -62,6 +62,14 @@ phase.
 
 Donation prepare/record use the **server-side** `campaign.escrowAddress` only.
 Client-supplied escrow addresses are ignored.
+
+## Proof & release (Phase 6)
+
+NGO/ADMIN submit `MilestoneProof` records (plain-text note + optional evidence
+URLs). Verification requires an ACTIVE campaign and a prior proof. Release is a
+separate privileged step (`autoRelease` defaults off). The indexer may sync
+relational milestone flags from on-chain verify/release events when a milestone
+index is present.
 
 ## Auth
 

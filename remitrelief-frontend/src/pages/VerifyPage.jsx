@@ -1,41 +1,106 @@
-import { useEffect, useState } from "react";
-import { fetchCampaigns, prepareVerify, submitVerify } from "../lib/api";
+import { useCallback, useEffect, useState } from "react";
+import {
+  fetchCampaign,
+  fetchCampaigns,
+  fetchMilestoneProofs,
+  prepareVerify,
+  submitProof,
+  submitRelease,
+  submitVerify,
+} from "../lib/api";
 import { signTransaction } from "../lib/wallet";
 import MilestoneTimeline from "../components/MilestoneTimeline";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 
 export default function VerifyPage() {
-  const { ensureAuthenticated } = useAuth();
+  const { ensureAuthenticated, user } = useAuth();
   const toast = useToast();
   const [campaigns, setCampaigns] = useState([]);
   const [campaignId, setCampaignId] = useState("");
+  const [campaign, setCampaign] = useState(null);
+  const [proofs, setProofs] = useState([]);
   const [milestoneIndex, setMilestoneIndex] = useState(0);
   const [proofNote, setProofNote] = useState("");
+  const [evidenceUrl, setEvidenceUrl] = useState("");
+  const [autoRelease, setAutoRelease] = useState(false);
   const [status, setStatus] = useState("idle");
   const [message, setMessage] = useState("");
   const [error, setError] = useState(null);
 
+  const loadCampaignDetail = useCallback(async (id) => {
+    if (!id) return;
+    const [detail, proofList] = await Promise.all([
+      fetchCampaign(id),
+      fetchMilestoneProofs(id).catch(() => []),
+    ]);
+    setCampaign(detail);
+    setProofs(Array.isArray(proofList) ? proofList : []);
+  }, []);
+
   useEffect(() => {
     fetchCampaigns()
       .then(({ data: list = [] }) => {
-        setCampaigns(list);
-        if (list[0]) setCampaignId(list[0].id);
+        const active = list.filter((item) => (item.effectiveStatus || item.status) === "ACTIVE");
+        setCampaigns(active.length ? active : list);
+        if (active[0] || list[0]) setCampaignId((active[0] || list[0]).id);
       })
       .catch((err) => setError(err.message));
   }, []);
 
-  const campaign = campaigns.find((c) => c.id === campaignId);
-  const milestones =
-    campaign?.milestoneLabels?.map((m) => ({
-      index: m.index,
-      label: m.label,
-      amountUsd: m.amount,
-      verified: m.index < (campaign.milestonesVerified || 0),
-      released: m.index < (campaign.milestonesVerified || 0),
-    })) || [];
+  useEffect(() => {
+    if (!campaignId) return;
+    loadCampaignDetail(campaignId).catch((err) => setError(err.message));
+  }, [campaignId, loadCampaignDetail]);
 
-  async function handleVerifyAndRelease() {
+  const milestones =
+    campaign?.milestones?.length > 0
+      ? campaign.milestones
+      : (campaign?.milestoneLabels || []).map((m) => ({
+          index: m.index,
+          label: m.label,
+          amount: m.amount,
+          verified: m.index < (campaign.milestonesVerified || 0),
+          released: false,
+        }));
+
+  const selected = milestones.find(
+    (item) => Number(item.index ?? item.sequence) === Number(milestoneIndex)
+  );
+  const canRelease =
+    Boolean(user?.roles?.includes("ADMIN")) &&
+    Boolean(selected?.verified) &&
+    !selected?.released;
+
+  async function handleSubmitProof() {
+    if (!campaign) return;
+    setError(null);
+    setMessage("");
+    try {
+      setStatus("connecting");
+      await ensureAuthenticated();
+      setStatus("submitting");
+      await submitProof(campaign.id, {
+        campaignId: campaign.id,
+        milestoneIndex: Number(milestoneIndex),
+        note: proofNote,
+        evidenceUrls: evidenceUrl.trim() ? [evidenceUrl.trim()] : [],
+      });
+      setStatus("done");
+      setMessage(`Proof submitted for milestone ${milestoneIndex}.`);
+      toast.push("Proof submitted", "success");
+      setProofNote("");
+      setEvidenceUrl("");
+      await loadCampaignDetail(campaign.id);
+    } catch (err) {
+      console.error(err);
+      setStatus("error");
+      setError(err.message || "Proof submission failed");
+      toast.push("Proof failed", "error");
+    }
+  }
+
+  async function handleVerify() {
     if (!campaign) return;
     setError(null);
     setMessage("");
@@ -48,9 +113,8 @@ export default function VerifyPage() {
       if (hasEscrow) {
         setStatus("preparing");
         const { unsignedXdr } = await prepareVerify(campaign.id, {
-          escrowAddress: campaign.escrowAddress,
+          campaignId: campaign.id,
           milestoneIndex: Number(milestoneIndex),
-          verifierPublicKey,
         });
 
         setStatus("signing");
@@ -58,51 +122,59 @@ export default function VerifyPage() {
 
         setStatus("verifying");
         await submitVerify(campaign.id, {
-          escrowAddress: campaign.escrowAddress,
-          milestoneIndex: Number(milestoneIndex),
-          verifierPublicKey,
-          verifierSignedXDR: signedXDR,
           campaignId: campaign.id,
-          proofNote,
-          autoRelease: true,
+          milestoneIndex: Number(milestoneIndex),
+          verifierSignedXDR: signedXDR,
+          autoRelease,
         });
       } else {
         setStatus("verifying");
         await submitVerify(campaign.id, {
           campaignId: campaign.id,
           milestoneIndex: Number(milestoneIndex),
-          verifierPublicKey,
-          proofNote,
           demo: true,
-          autoRelease: true,
+          autoRelease,
         });
-        setCampaigns((prev) =>
-          prev.map((c) =>
-            c.id === campaign.id
-              ? {
-                  ...c,
-                  milestonesVerified: Math.min(
-                    c.milestonesTotal,
-                    Math.max(c.milestonesVerified, Number(milestoneIndex) + 1)
-                  ),
-                }
-              : c
-          )
-        );
       }
 
       setStatus("done");
-      const ok = hasEscrow
-        ? `Milestone ${milestoneIndex} verified and released on-chain.`
-        : `Demo: milestone ${milestoneIndex} verified and released.`;
-      setMessage(ok);
-      toast.push("Milestone verified & released", "success");
-      setProofNote("");
+      setMessage(
+        autoRelease
+          ? `Milestone ${milestoneIndex} verified and released.`
+          : `Milestone ${milestoneIndex} verified. Release separately when ready.`
+      );
+      toast.push("Milestone verified", "success");
+      await loadCampaignDetail(campaign.id);
     } catch (err) {
       console.error(err);
       setStatus("error");
       setError(err.message || "Verification failed");
       toast.push("Verification failed", "error");
+    }
+  }
+
+  async function handleRelease() {
+    if (!campaign) return;
+    setError(null);
+    setMessage("");
+    try {
+      setStatus("releasing");
+      await ensureAuthenticated();
+      await submitRelease(campaign.id, {
+        campaignId: campaign.id,
+        milestoneIndex: Number(milestoneIndex),
+        demo: !campaign.escrowAddress,
+        amount: selected?.targetAmount ?? selected?.amount,
+      });
+      setStatus("done");
+      setMessage(`Milestone ${milestoneIndex} funds released.`);
+      toast.push("Milestone released", "success");
+      await loadCampaignDetail(campaign.id);
+    } catch (err) {
+      console.error(err);
+      setStatus("error");
+      setError(err.message || "Release failed");
+      toast.push("Release failed", "error");
     }
   }
 
@@ -115,8 +187,8 @@ export default function VerifyPage() {
           <p className="eyebrow">NGO / verifier</p>
           <h1>Verify a milestone</h1>
           <p className="hero-copy">
-            Confirm on-the-ground delivery with a proof note, then release the matching escrow
-            tranche to the recipient.
+            Submit delivery proof, verify the milestone on the bound escrow, then release the
+            tranche as a separate step.
           </p>
         </div>
       </section>
@@ -144,15 +216,16 @@ export default function VerifyPage() {
           </label>
 
           <label className="input-label" htmlFor="verify-milestone">
-            Milestone to verify
+            Milestone
             <select
               id="verify-milestone"
               value={milestoneIndex}
               onChange={(e) => setMilestoneIndex(Number(e.target.value))}
             >
-              {(campaign?.milestoneLabels || []).map((m) => (
-                <option key={m.index} value={m.index}>
-                  #{m.index}: {m.label} (${m.amount.toLocaleString()})
+              {milestones.map((m) => (
+                <option key={m.id || m.index} value={m.index ?? m.sequence}>
+                  #{m.index ?? m.sequence}: {m.title || m.label} ($
+                  {Number(m.targetAmount ?? m.amount ?? 0).toLocaleString()})
                 </option>
               ))}
             </select>
@@ -163,29 +236,53 @@ export default function VerifyPage() {
             <textarea
               id="proof-note"
               rows={3}
-              placeholder="e.g. 200 water kits delivered — GPS photos attached in field report #482"
+              placeholder="Describe what was delivered and where"
               value={proofNote}
               onChange={(e) => setProofNote(e.target.value)}
-              maxLength={500}
+              maxLength={2000}
             />
+          </label>
+
+          <label className="input-label" htmlFor="evidence-url">
+            Optional evidence URL
+            <input
+              id="evidence-url"
+              type="url"
+              placeholder="https://…"
+              value={evidenceUrl}
+              onChange={(e) => setEvidenceUrl(e.target.value)}
+            />
+          </label>
+
+          <label className="input-label checkbox-row">
+            <input
+              type="checkbox"
+              checked={autoRelease}
+              onChange={(e) => setAutoRelease(e.target.checked)}
+            />
+            Also release funds immediately after verify
           </label>
 
           <p className="modal-copy">
             {campaign?.escrowAddress
-              ? "Your wallet must be an allowlisted verifier on the escrow contract."
-              : "Demo mode — verification updates the local ledger without an on-chain call."}
+              ? "Verification uses the campaign-bound escrow. Your wallet must be an allowlisted verifier."
+              : "Demo path — no escrow bound. Actions update the local ledger and are labeled non-verified."}
           </p>
 
           <div className="modal-actions">
-            <button type="button" onClick={handleVerifyAndRelease} disabled={busy || !campaign}>
-              {status === "idle" && "Verify & release"}
-              {status === "connecting" && "Connecting wallet…"}
-              {status === "preparing" && "Preparing transaction…"}
-              {status === "signing" && "Awaiting signature…"}
-              {status === "verifying" && "Verifying & releasing…"}
-              {status === "done" && "Complete ✓"}
-              {status === "error" && "Try again"}
+            <button type="button" className="secondary" onClick={handleSubmitProof} disabled={busy || !campaign}>
+              Submit proof
             </button>
+            <button type="button" onClick={handleVerify} disabled={busy || !campaign}>
+              {status === "preparing" || status === "signing" || status === "verifying"
+                ? "Verifying…"
+                : "Verify milestone"}
+            </button>
+            {canRelease && (
+              <button type="button" className="secondary" onClick={handleRelease} disabled={busy}>
+                Release funds
+              </button>
+            )}
           </div>
 
           {message && <p className="message success">{message}</p>}
@@ -194,7 +291,7 @@ export default function VerifyPage() {
 
         <section className="panel">
           <h2>Current milestones</h2>
-          <MilestoneTimeline milestones={milestones} />
+          <MilestoneTimeline milestones={milestones} proofs={proofs} />
         </section>
       </div>
     </div>

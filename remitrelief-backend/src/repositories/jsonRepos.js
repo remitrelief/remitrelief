@@ -19,6 +19,16 @@ export const milestonesRepo = {
     store.markMilestoneVerified(campaignId, milestoneIndex),
   markReleasedByIndex: async (campaignId, milestoneIndex) =>
     store.markMilestoneReleased(campaignId, milestoneIndex),
+  findByCampaignAndIndex: async (campaignId, milestoneIndex) =>
+    store.getMilestoneByCampaignIndex(campaignId, milestoneIndex),
+};
+
+export const proofsRepo = {
+  create: async (input) => store.createMilestoneProof(input),
+  listByCampaign: async (campaignId, options) =>
+    store.listMilestoneProofs(campaignId, options),
+  latestForMilestone: async (campaignId, milestoneIndex) =>
+    store.latestMilestoneProof(campaignId, milestoneIndex),
 };
 
 export const campaignUpdatesRepo = {
