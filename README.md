@@ -99,6 +99,8 @@ cd ../remitrelief-frontend && npm run build
 
 Testnet only. Not audited. Do not use with real funds.
 
+Phase 7 operator workspaces & transparency: see `docs/PHASE_7_REPORT.md`.
+
 ## License
 
 MIT

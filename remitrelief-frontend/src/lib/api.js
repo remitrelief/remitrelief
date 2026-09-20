@@ -115,6 +115,43 @@ export function fetchMyCampaigns(params = {}) {
   return request(`/campaigns/mine${qs ? `?${qs}` : ""}`, { envelope: true });
 }
 
+export function fetchModerationQueue(params = {}) {
+  const qs = new URLSearchParams(
+    Object.fromEntries(Object.entries(params).filter(([, value]) => value != null && value !== ""))
+  ).toString();
+  return request(`/campaigns/admin/queue${qs ? `?${qs}` : ""}`, { envelope: true });
+}
+
+export function fetchMyOrganizations() {
+  return request("/organizations/mine");
+}
+
+export function createOrganization(body) {
+  return request("/organizations", { method: "POST", body: JSON.stringify(body) });
+}
+
+export function fetchPendingOrganizations() {
+  return request("/organizations/pending");
+}
+
+export function setOrganizationStatus(id, status) {
+  return request(`/organizations/${id}/status`, {
+    method: "POST",
+    body: JSON.stringify({ status }),
+  });
+}
+
+export function fetchAdminAudits(params = {}) {
+  const qs = new URLSearchParams(
+    Object.fromEntries(Object.entries(params).filter(([, value]) => value != null && value !== ""))
+  ).toString();
+  return request(`/admin/audits${qs ? `?${qs}` : ""}`);
+}
+
+export function fetchAdminIndexer() {
+  return request("/admin/indexer");
+}
+
 export function submitCampaign(id) {
   return request(`/campaigns/${id}/submit`, { method: "POST", body: JSON.stringify({}) });
 }

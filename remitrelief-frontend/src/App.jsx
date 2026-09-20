@@ -11,6 +11,8 @@ const CreateCampaign = lazy(() => import("./pages/CreateCampaign"));
 const MyCampaigns = lazy(() => import("./pages/MyCampaigns"));
 const CampaignManagement = lazy(() => import("./pages/CampaignManagement"));
 const DonorDashboard = lazy(() => import("./pages/DonorDashboard"));
+const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const OrganizationWorkspace = lazy(() => import("./pages/OrganizationWorkspace"));
 const Ledger = lazy(() => import("./pages/Ledger"));
 const VerifyPage = lazy(() => import("./pages/VerifyPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -54,6 +56,22 @@ export default function App() {
                   element={
                     <ProtectedRoute>
                       <DonorDashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="organizations"
+                  element={
+                    <ProtectedRoute>
+                      <OrganizationWorkspace />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="admin"
+                  element={
+                    <ProtectedRoute roles={["ADMIN"]}>
+                      <AdminDashboard />
                     </ProtectedRoute>
                   }
                 />

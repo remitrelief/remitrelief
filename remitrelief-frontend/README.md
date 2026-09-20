@@ -4,12 +4,15 @@ React + Vite donor experience for milestone-escrowed disaster relief on Stellar.
 
 ## Pages
 
-- `/` — campaign list with search, category chips, sort
-- `/campaigns/:id` — detail, milestones, activity, share
-- `/create` — create a campaign with milestone tranches
-- `/dashboard` — donor history (shared wallet state)
-- `/ledger` — public transparency ledger with filters
-- `/verify` — NGO milestone verify + proof note + release
+- `/campaigns` — campaign list with search, category chips, sort
+- `/campaign/:id` — detail, milestones, proofs, activity, share
+- `/create-campaign` — create a campaign with milestone tranches + org picker
+- `/dashboard` — donor history (wallet + session)
+- `/dashboard/campaigns` — organizer campaign list
+- `/organizations` — create/list organizations (status only, not KYC)
+- `/admin` — ADMIN moderation queue, pending orgs, audits, indexer
+- `/ledger` — public transparency ledger (`type` + `campaignId` filters)
+- `/verify` — NGO/ADMIN proof → verify → release (NGO scoped to mine)
 
 ## Setup
 

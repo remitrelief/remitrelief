@@ -25,9 +25,19 @@ function parseMilestoneIndex(ev) {
  * Idempotent on (txHash, type, campaignId).
  */
 export async function runIndexer({ limitPerContract = 50 } = {}) {
-  const listed = await campaignsRepo.list({ limit: 100, page: 1 });
-  const rows = Array.isArray(listed) ? listed : listed.items || [];
-  const campaigns = rows.filter((c) => c.escrowAddress);
+  const campaigns = [];
+  let page = 1;
+  let totalPages = 1;
+  do {
+    const listed = await campaignsRepo.list({ limit: 100, page });
+    const rows = Array.isArray(listed) ? listed : listed.items || [];
+    totalPages = Array.isArray(listed) ? 1 : listed.totalPages || 1;
+    for (const row of rows) {
+      if (row.escrowAddress) campaigns.push(row);
+    }
+    page += 1;
+  } while (page <= totalPages);
+
   const summary = {
     campaigns: campaigns.length,
     scanned: 0,
@@ -129,9 +139,18 @@ export async function runIndexer({ limitPerContract = 50 } = {}) {
 }
 
 export async function indexerStatus() {
-  const listed = await campaignsRepo.list({ limit: 100, page: 1 });
-  const rows = Array.isArray(listed) ? listed : listed.items || [];
-  const campaigns = rows.filter((c) => c.escrowAddress);
+  const campaigns = [];
+  let page = 1;
+  let totalPages = 1;
+  do {
+    const listed = await campaignsRepo.list({ limit: 100, page });
+    const rows = Array.isArray(listed) ? listed : listed.items || [];
+    totalPages = Array.isArray(listed) ? 1 : listed.totalPages || 1;
+    for (const row of rows) {
+      if (row.escrowAddress) campaigns.push(row);
+    }
+    page += 1;
+  } while (page <= totalPages);
   const cursors = [];
   for (const c of campaigns) {
     const key = `escrow:${c.escrowAddress}`;

@@ -412,6 +412,19 @@ export const organizationsRepo = {
       membershipRole: membership.role,
     }));
   },
+  async updateStatus(id, status) {
+    return getPrisma().organization.update({
+      where: { id },
+      data: { status },
+      include: { members: true },
+    });
+  },
+  async list({ status } = {}) {
+    return getPrisma().organization.findMany({
+      where: status ? { status } : undefined,
+      orderBy: { createdAt: "desc" },
+    });
+  },
 };
 
 export const donationsRepo = {

@@ -177,6 +177,7 @@ export const campaignsRepo = {
     q,
     category,
     status,
+    statusIn,
     sort = "newest",
     page = 1,
     limit = 12,
@@ -193,9 +194,11 @@ export const campaignsRepo = {
               ? status
               : { in: ["ACTIVE", "COMPLETED"] },
           }
-        : status
-          ? { status }
-          : {}),
+        : statusIn?.length
+          ? { status: { in: statusIn } }
+          : status
+            ? { status }
+            : {}),
       ...(category && category !== "All" ? { category } : {}),
       ...(term
         ? {

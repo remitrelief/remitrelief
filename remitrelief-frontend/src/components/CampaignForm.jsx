@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { CAMPAIGN_CATEGORIES, Money } from "./CampaignUI";
+import { fetchMyOrganizations } from "../lib/api";
 
 const STEPS = ["Basics", "Funding", "Milestones", "Review"];
 const EMPTY_MILESTONE = { title: "", description: "", targetAmount: "" };
@@ -23,6 +24,7 @@ function campaignToForm(campaign) {
 
 export default function CampaignForm({ campaign, storageKey = "campaign-draft", onSave, onSubmit }) {
   const [step, setStep] = useState(0);
+  const [organizations, setOrganizations] = useState([]);
   const [form, setForm] = useState(() => {
     if (campaign) return campaignToForm(campaign);
     try {
@@ -51,6 +53,12 @@ export default function CampaignForm({ campaign, storageKey = "campaign-draft", 
   useEffect(() => {
     if (!campaign && dirty) localStorage.setItem(storageKey, JSON.stringify({ form, milestones }));
   }, [campaign, dirty, form, milestones, storageKey]);
+
+  useEffect(() => {
+    fetchMyOrganizations()
+      .then((list) => setOrganizations(Array.isArray(list) ? list : []))
+      .catch(() => setOrganizations([]));
+  }, []);
 
   useEffect(() => {
     const protect = (event) => {
@@ -149,7 +157,21 @@ export default function CampaignForm({ campaign, storageKey = "campaign-draft", 
             <label className="input-label">Currency<select value={form.currency} onChange={(event) => updateField("currency", event.target.value)}>{["USDC", "USD", "NGN", "EUR", "GBP"].map((item) => <option key={item}>{item}</option>)}</select></label>
             <Field label="Deadline" type="date" value={form.deadline} onChange={(value) => updateField("deadline", value)} />
             <Field label="Recipient user ID" value={form.recipientId} onChange={(value) => updateField("recipientId", value)} />
-            <Field label="Organization ID (optional)" value={form.organizationId} onChange={(value) => updateField("organizationId", value)} />
+            <label className="input-label">
+              Organization (optional)
+              <select
+                value={form.organizationId}
+                onChange={(event) => updateField("organizationId", event.target.value)}
+              >
+                <option value="">None</option>
+                {organizations.map((org) => (
+                  <option key={org.id} value={org.id} disabled={org.status !== "VERIFIED"}>
+                    {org.name}
+                    {org.status !== "VERIFIED" ? ` (${org.status})` : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
             <Field className="full" label="Cover image URL" type="url" value={form.coverImage} onChange={(value) => updateField("coverImage", value)} />
           </div>
         </fieldset>}

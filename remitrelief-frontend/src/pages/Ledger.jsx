@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { fetchLedger, fetchStats } from "../lib/api";
 import { shortenAddress } from "../lib/stellar";
 
@@ -12,22 +12,45 @@ const TYPES = [
 ];
 
 export default function Ledger() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [events, setEvents] = useState([]);
   const [stats, setStats] = useState(null);
   const [type, setType] = useState("");
+  const [campaignId, setCampaignId] = useState(searchParams.get("campaignId") || "");
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const fromUrl = searchParams.get("campaignId") || "";
+    setCampaignId(fromUrl);
+  }, [searchParams]);
+
+  useEffect(() => {
     setLoading(true);
-    Promise.all([fetchLedger({ limit: 100, type: type || undefined }), fetchStats()])
+    Promise.all([
+      fetchLedger({
+        limit: 100,
+        type: type || undefined,
+        campaignId: campaignId || undefined,
+      }),
+      fetchStats(),
+    ])
       .then(([list, s]) => {
         setEvents(list);
         setStats(s);
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [type]);
+  }, [type, campaignId]);
+
+  function applyCampaignFilter(value) {
+    const next = value.trim();
+    setCampaignId(next);
+    const params = new URLSearchParams(searchParams);
+    if (next) params.set("campaignId", next);
+    else params.delete("campaignId");
+    setSearchParams(params, { replace: true });
+  }
 
   return (
     <div className="page">
@@ -60,17 +83,32 @@ export default function Ledger() {
         </div>
       )}
 
-      <div className="chip-row filter-chips" role="group" aria-label="Event type">
-        {TYPES.map((t) => (
-          <button
-            key={t.value || "all"}
-            type="button"
-            className={`chip ${type === t.value ? "active" : ""}`}
-            onClick={() => setType(t.value)}
-          >
-            {t.label}
+      <div className="filter-bar ledger-filters">
+        <div className="chip-row filter-chips" role="group" aria-label="Event type">
+          {TYPES.map((t) => (
+            <button
+              key={t.value || "all"}
+              type="button"
+              className={`chip ${type === t.value ? "active" : ""}`}
+              onClick={() => setType(t.value)}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <label className="input-label campaign-filter">
+          Campaign ID
+          <input
+            value={campaignId}
+            placeholder="Filter by campaign id or slug"
+            onChange={(event) => applyCampaignFilter(event.target.value)}
+          />
+        </label>
+        {campaignId && (
+          <button type="button" className="secondary compact" onClick={() => applyCampaignFilter("")}>
+            Clear campaign filter
           </button>
-        ))}
+        )}
       </div>
 
       {loading && <p className="muted">Loading ledger…</p>}
@@ -87,7 +125,7 @@ export default function Ledger() {
                   <div className="ledger-badge">{e.type.replace("_", " ")}</div>
                   <div className="ledger-body">
                     <h3>
-                      <Link to={`/campaigns/${e.campaignId}`}>{e.campaignName}</Link>
+                      <Link to={`/campaign/${e.campaignId}`}>{e.campaignName}</Link>
                     </h3>
                     <p>{e.note}</p>
                     {e.proofNote && <p className="proof-note">Proof: {e.proofNote}</p>}

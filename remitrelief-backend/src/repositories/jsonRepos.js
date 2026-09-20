@@ -93,7 +93,7 @@ export const sessionsRepo = {
 export const auditRepo = {
   create: async (input) => store.createAuditLog(input),
   findByUser: async (userId) => store.listAuditLogsByUser(userId),
-  findRecent: async () => [],
+  findRecent: async ({ limit = 50 } = {}) => store.listRecentAuditLogs({ limit }),
 };
 
 export const profilesRepo = {
@@ -109,6 +109,8 @@ export const organizationsRepo = {
   addMember: async (input) => store.addOrganizationMember(input),
   listMembers: async (organizationId) => store.listOrganizationMembers(organizationId),
   listForUser: async (userId) => store.listOrganizationsForUser(userId),
+  updateStatus: async (id, status) => store.updateOrganizationStatus(id, status),
+  list: async (filters) => store.listOrganizations(filters),
 };
 
 export const indexerRepo = {

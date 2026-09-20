@@ -13,6 +13,7 @@ import ledgerRouter from "./routes/ledger.js";
 import authRouter from "./routes/auth.js";
 import internalRouter from "./routes/internal.js";
 import organizationsRouter from "./routes/organizations.js";
+import adminRouter from "./routes/admin.js";
 import { asyncHandler } from "./middleware/asyncHandler.js";
 import { getStats } from "./services/campaignsService.js";
 
@@ -49,6 +50,7 @@ app.use("/api/donations", donationsRouter);
 app.use("/api/ledger", ledgerRouter);
 app.use("/api/internal", internalRouter);
 app.use("/api/organizations", organizationsRouter);
+app.use("/api/admin", adminRouter);
 
 // Direct-backend compatibility aliases. Browser-facing deployments use /api/*.
 app.use("/auth", authRouter);
@@ -58,6 +60,7 @@ app.use("/donations", donationsRouter);
 app.use("/ledger", ledgerRouter);
 app.use("/internal", internalRouter);
 app.use("/organizations", organizationsRouter);
+app.use("/admin", adminRouter);
 
 app.get("/health", (_req, res) =>
   res.json({

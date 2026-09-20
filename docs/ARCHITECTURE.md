@@ -1,4 +1,4 @@
-# RemitRelief Architecture (Phase 6)
+# RemitRelief Architecture (Phase 7)
 
 ```text
 React Frontend (WalletContext + AuthContext)
@@ -10,7 +10,7 @@ Express API (helmet, CORS allowlist, cookies)
 Auth + Authorization middleware
         │
         ▼
-Controllers → Domain services (lifecycle, escrow bind, donations, milestones)
+Controllers → Domain services (lifecycle, escrow, donations, milestones, orgs, admin)
         │
         ├──────────────────────┐
         ▼                      ▼
@@ -70,6 +70,14 @@ URLs). Verification requires an ACTIVE campaign and a prior proof. Release is a
 separate privileged step (`autoRelease` defaults off). The indexer may sync
 relational milestone flags from on-chain verify/release events when a milestone
 index is present.
+
+## Operator workspaces (Phase 7)
+
+ADMIN users get a moderation queue, organization status approvals (not KYC),
+audit feed, and indexer status. Organizers create organizations and attach
+**VERIFIED** orgs to campaigns. Public ledger supports `campaignId` filtering;
+campaign detail surfaces proofs and activity. The light indexer pages through
+all escrow-bound campaigns (not a single 100-row page).
 
 ## Auth
 

@@ -391,6 +391,7 @@ export function listCampaigns({
   q,
   category,
   status,
+  statusIn,
   sort = "newest",
   page = 1,
   limit = 12,
@@ -406,6 +407,8 @@ export function listCampaigns({
         ["ACTIVE", "COMPLETED"].includes(c.status) &&
         (!["ACTIVE", "COMPLETED"].includes(status) || c.status === status)
     );
+  } else if (statusIn?.length) {
+    rows = rows.filter((c) => statusIn.includes(c.status));
   } else if (status) rows = rows.filter((c) => c.status === status);
   if (category && category !== "All") rows = rows.filter((c) => c.category === category);
   const term = search || q;
@@ -1055,6 +1058,29 @@ export function createAuditLog(input) {
 
 export function listAuditLogsByUser(userId) {
   return db.auditLogs.filter((item) => item.userId === userId).map((item) => ({ ...item }));
+}
+
+export function listRecentAuditLogs({ limit = 50 } = {}) {
+  return (db.auditLogs || [])
+    .slice()
+    .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
+    .slice(0, Number(limit) || 50)
+    .map((item) => ({ ...item }));
+}
+
+export function updateOrganizationStatus(id, status) {
+  const organization = db.organizations.find((item) => item.id === id || item.slug === id);
+  if (!organization) return null;
+  organization.status = status;
+  organization.updatedAt = new Date().toISOString();
+  saveState();
+  return getOrganization(organization.id);
+}
+
+export function listOrganizations({ status } = {}) {
+  return db.organizations
+    .filter((item) => !status || item.status === status)
+    .map((item) => ({ ...item }));
 }
 
 export function saveAuthChallenge(row) {

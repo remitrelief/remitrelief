@@ -3,6 +3,7 @@ import {
   fetchCampaign,
   fetchCampaigns,
   fetchMilestoneProofs,
+  fetchMyCampaigns,
   prepareVerify,
   submitProof,
   submitRelease,
@@ -39,14 +40,20 @@ export default function VerifyPage() {
   }, []);
 
   useEffect(() => {
-    fetchCampaigns()
-      .then(({ data: list = [] }) => {
+    const isAdmin = Boolean(user?.roles?.includes("ADMIN"));
+    const loader = isAdmin
+      ? fetchCampaigns({ limit: 100 }).then((result) => result.data || [])
+      : fetchMyCampaigns({ limit: 100 }).then((result) => result.data || []);
+
+    loader
+      .then((list) => {
         const active = list.filter((item) => (item.effectiveStatus || item.status) === "ACTIVE");
-        setCampaigns(active.length ? active : list);
-        if (active[0] || list[0]) setCampaignId((active[0] || list[0]).id);
+        const scoped = active.length ? active : list;
+        setCampaigns(scoped);
+        if (scoped[0]) setCampaignId(scoped[0].id);
       })
       .catch((err) => setError(err.message));
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     if (!campaignId) return;
@@ -187,11 +194,17 @@ export default function VerifyPage() {
           <p className="eyebrow">NGO / verifier</p>
           <h1>Verify a milestone</h1>
           <p className="hero-copy">
-            Submit delivery proof, verify the milestone on the bound escrow, then release the
-            tranche as a separate step.
+            {user?.roles?.includes("ADMIN")
+              ? "Admins can verify any ACTIVE campaign. NGOs see campaigns they own or belong to."
+              : "Scoped to campaigns you own or belong to via a verified organization."}{" "}
+            Submit delivery proof, verify on the bound escrow, then release as a separate step.
           </p>
         </div>
       </section>
+
+      {campaigns.length === 0 && !error && (
+        <p className="muted">No campaigns in your NGO scope yet.</p>
+      )}
 
       <div className="detail-grid">
         <section className="panel">
@@ -270,7 +283,12 @@ export default function VerifyPage() {
           </p>
 
           <div className="modal-actions">
-            <button type="button" className="secondary" onClick={handleSubmitProof} disabled={busy || !campaign}>
+            <button
+              type="button"
+              className="secondary"
+              onClick={handleSubmitProof}
+              disabled={busy || !campaign}
+            >
               Submit proof
             </button>
             <button type="button" onClick={handleVerify} disabled={busy || !campaign}>

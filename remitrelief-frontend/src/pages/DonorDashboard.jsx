@@ -60,7 +60,8 @@ export default function DonorDashboard() {
           <p className="eyebrow">Donor dashboard</p>
           <h1>Your relief contributions</h1>
           <p className="hero-copy">
-            Connect your Stellar wallet to see donations recorded against your public key.
+            Connect your Stellar wallet and sign in to see donations recorded against your public
+            key. Platform totals below are public; personal history requires your wallet.
           </p>
         </div>
         <div className="page-header-actions">
@@ -69,6 +70,11 @@ export default function DonorDashboard() {
               <span className="wallet-chip" title={address}>
                 {shortAddress}
               </span>
+              {!authenticated && (
+                <button type="button" className="compact" onClick={() => login().catch(() => {})}>
+                  Sign in
+                </button>
+              )}
               <button type="button" className="secondary" onClick={disconnect}>
                 Disconnect
               </button>
@@ -103,6 +109,12 @@ export default function DonorDashboard() {
       {!isConnected && (
         <div className="panel empty-panel">
           <p>Connect Freighter or Albedo to load your donation history.</p>
+        </div>
+      )}
+
+      {isConnected && !authenticated && (
+        <div className="panel empty-panel">
+          <p>Wallet connected. Sign in to RemitRelief to sync your session-backed history.</p>
         </div>
       )}
 

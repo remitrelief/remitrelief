@@ -10,6 +10,7 @@ import {
   getStats,
   listCampaigns,
   listCampaignUpdates,
+  listModerationQueue,
   listMyCampaigns,
   submitCampaign,
   transitionCampaign,
@@ -37,6 +38,11 @@ export async function campaignStats(_req, res) {
 
 export async function myCampaigns(req, res) {
   const result = await listMyCampaigns(req.query, req.user);
+  return send(res, result.data, result.meta);
+}
+
+export async function moderationQueue(req, res) {
+  const result = await listModerationQueue(req.query, req.user);
   return send(res, result.data, result.meta);
 }
 

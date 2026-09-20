@@ -135,6 +135,34 @@ export async function listMyCampaigns(filters = {}, actor) {
   };
 }
 
+export async function listModerationQueue(filters = {}, actor) {
+  if (!isAdmin(actor)) {
+    throw new AppError(ErrorCodes.CAMPAIGN_ACCESS_DENIED, "Admin access required");
+  }
+  const query = validateCampaignQuery({
+    ...filters,
+    limit: filters.limit || 50,
+  });
+  const statusIn = filters.status
+    ? [String(filters.status).toUpperCase()]
+    : ["SUBMITTED", "UNDER_REVIEW", "APPROVED"];
+  const result = await campaignsRepo.list({
+    ...query,
+    status: undefined,
+    statusIn,
+    publicOnly: false,
+  });
+  return {
+    data: result.items.map((campaign) => publicView(campaign, actor)),
+    meta: {
+      page: result.page,
+      limit: result.limit,
+      total: result.total,
+      totalPages: result.totalPages,
+    },
+  };
+}
+
 export async function getStats() {
   return statsRepo.get();
 }

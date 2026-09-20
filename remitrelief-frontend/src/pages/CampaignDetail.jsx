@@ -14,12 +14,20 @@ import {
   ShareLinks,
   campaignTitle,
 } from "../components/CampaignUI";
-import { fetchCampaign, fetchCampaignUpdates } from "../lib/api";
+import {
+  fetchCampaign,
+  fetchCampaignUpdates,
+  fetchLedger,
+  fetchMilestoneProofs,
+} from "../lib/api";
+import { shortenAddress } from "../lib/stellar";
 
 export default function CampaignDetail() {
   const { id } = useParams();
   const [campaign, setCampaign] = useState(null);
   const [updates, setUpdates] = useState([]);
+  const [events, setEvents] = useState([]);
+  const [proofs, setProofs] = useState([]);
   const [error, setError] = useState(null);
   const [donateOpen, setDonateOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -28,12 +36,16 @@ export default function CampaignDetail() {
     setLoading(true);
     setError(null);
     try {
-      const [campaignResult, updateResult] = await Promise.all([
+      const [campaignResult, updateResult, ledgerResult, proofResult] = await Promise.all([
         fetchCampaign(id),
         fetchCampaignUpdates(id).catch(() => []),
+        fetchLedger({ campaignId: id, limit: 30 }).catch(() => []),
+        fetchMilestoneProofs(id).catch(() => []),
       ]);
       setCampaign(campaignResult);
       setUpdates(updateResult || campaignResult.updates || []);
+      setEvents(Array.isArray(ledgerResult) ? ledgerResult : []);
+      setProofs(Array.isArray(proofResult) ? proofResult : []);
     } catch (err) {
       console.error(err);
       setError(err.message || "Failed to load campaign");
@@ -116,6 +128,9 @@ export default function CampaignDetail() {
                 Manage campaign
               </Link>
             )}
+            <Link className="ghost-link" to={`/ledger?campaignId=${campaign.id}`}>
+              Campaign ledger
+            </Link>
           </div>
           {active && !hasEscrow && (
             <p className="muted detail-escrow-note">
@@ -178,7 +193,10 @@ export default function CampaignDetail() {
             {campaign.organization && (
               <div>
                 <dt>Organization</dt>
-                <dd>{campaign.organization.name}</dd>
+                <dd>
+                  {campaign.organization.name}
+                  {campaign.organization.status ? ` · ${campaign.organization.status}` : ""}
+                </dd>
               </div>
             )}
           </dl>
@@ -209,7 +227,70 @@ export default function CampaignDetail() {
 
       <section className="panel">
         <h2>Milestones</h2>
-        <MilestoneTimeline milestones={campaign.milestones || []} />
+        <MilestoneTimeline milestones={campaign.milestones || []} proofs={proofs} />
+      </section>
+
+      <section className="panel">
+        <h2>Submitted proofs</h2>
+        {proofs.length === 0 ? (
+          <p className="muted">No milestone proofs submitted yet.</p>
+        ) : (
+          <ul className="activity-list">
+            {proofs.map((proof) => (
+              <li key={proof.id}>
+                <div>
+                  <strong className="event-type">
+                    Milestone {proof.milestoneIndex} · {proof.status}
+                  </strong>
+                  <p>{proof.note}</p>
+                  {proof.evidenceUrls?.length > 0 && (
+                    <p className="proof-note">
+                      Evidence:{" "}
+                      {proof.evidenceUrls.map((url) => (
+                        <a key={url} href={url} target="_blank" rel="noreferrer">
+                          {url}
+                        </a>
+                      ))}
+                    </p>
+                  )}
+                </div>
+                <time dateTime={proof.createdAt}>
+                  {new Date(proof.createdAt).toLocaleString()}
+                </time>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="panel">
+        <h2>Campaign activity</h2>
+        {events.length === 0 ? (
+          <p className="muted">No ledger events yet for this campaign.</p>
+        ) : (
+          <ul className="activity-list">
+            {events.map((event) => (
+              <li key={event.id}>
+                <div>
+                  <strong className="event-type">{event.type}</strong>
+                  <p>{event.note}</p>
+                  {event.txHash && (
+                    <a
+                      href={`https://stellar.expert/explorer/testnet/tx/${event.txHash}`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {shortenAddress(event.txHash, 4)}
+                    </a>
+                  )}
+                </div>
+                <time dateTime={event.createdAt}>
+                  {new Date(event.createdAt).toLocaleString()}
+                </time>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="panel">

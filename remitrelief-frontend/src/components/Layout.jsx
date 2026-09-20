@@ -71,14 +71,16 @@ export default function Layout() {
           <span className="brand-name">RemitRelief</span>
         </NavLink>
         <nav className="site-nav" aria-label="Primary">
-          <NavLink to="/campaigns">
-            Campaigns
-          </NavLink>
+          <NavLink to="/campaigns">Campaigns</NavLink>
           <NavLink to="/create-campaign">Create</NavLink>
           <NavLink to="/dashboard/campaigns">My campaigns</NavLink>
+          <NavLink to="/organizations">Organizations</NavLink>
           <NavLink to="/ledger">Ledger</NavLink>
           <NavLink to="/dashboard">Dashboard</NavLink>
-          <NavLink to="/verify">Verify</NavLink>
+          {(roles?.includes("NGO") || roles?.includes("ADMIN")) && (
+            <NavLink to="/verify">Verify</NavLink>
+          )}
+          {roles?.includes("ADMIN") && <NavLink to="/admin">Admin</NavLink>}
         </nav>
         <div className="header-wallet">
           <span className="wallet-chip status-chip" title={authError || status}>

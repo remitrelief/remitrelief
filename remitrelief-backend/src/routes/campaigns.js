@@ -12,6 +12,7 @@ import {
   discoverCampaigns,
   listUpdatesAction,
   myCampaigns,
+  moderationQueue,
   submitCampaignAction,
   transitionCampaignAction,
   updateCampaignAction,
@@ -36,6 +37,11 @@ const mutationLimiter = rateLimit({
 router.get("/", asyncHandler(discoverCampaigns));
 router.get("/meta/stats", asyncHandler(campaignStats));
 router.get("/mine", requireAuth, asyncHandler(myCampaigns));
+router.get(
+  "/admin/queue",
+  requireRole(Roles.ADMIN),
+  asyncHandler(moderationQueue)
+);
 router.post("/", mutationLimiter, requireAuth, asyncHandler(createCampaignAction));
 router.get("/:id", optionalAuth, asyncHandler(campaignDetail));
 router.patch("/:id", mutationLimiter, requireAuth, asyncHandler(updateCampaignAction));

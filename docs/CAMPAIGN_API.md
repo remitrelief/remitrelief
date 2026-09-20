@@ -68,6 +68,9 @@ An organization can be assigned only by an active organization `OWNER` or
 
 ## Moderation
 
+`GET /api/campaigns/admin/queue` requires `ADMIN` and returns campaigns in
+`SUBMITTED`, `UNDER_REVIEW`, or `APPROVED` (optional `?status=` narrows the set).
+
 `POST /api/campaigns/:id/transitions/:status` requires `ADMIN`.
 
 Allowed transitions:
@@ -126,6 +129,27 @@ Related error codes: `ESCROW_REQUIRED`, `ESCROW_INVALID`, `ESCROW_NOT_BOUND`,
 
 Related codes: `PROOF_REQUIRED`, `PROOF_INVALID`, `MILESTONE_ALREADY_VERIFIED`,
 `MILESTONE_NOT_VERIFIED`, `MILESTONE_ALREADY_RELEASED`.
+
+## Organizations (status only — not KYC)
+
+- `GET /api/organizations/mine` — authenticated memberships
+- `POST /api/organizations` — create as `PENDING` (caller becomes `OWNER`)
+- `GET /api/organizations/pending` — ADMIN pending list
+- `POST /api/organizations/:id/status` — ADMIN sets
+  `PENDING` | `VERIFIED` | `SUSPENDED` | `REJECTED`
+
+Organization verification is an application status gate. It is **not** identity
+KYC.
+
+## Admin transparency
+
+- `GET /api/admin/audits?limit=` — recent audit rows (ADMIN)
+- `GET /api/admin/indexer` — escrow campaign count + cursors (ADMIN)
+
+## Public ledger
+
+`GET /api/ledger?campaignId=&type=&limit=` — public events. Filter by campaign
+and/or event type. On-chain indexed rows set `verifiedOnChain: true`.
 
 ## Milestones
 
