@@ -148,8 +148,21 @@ KYC.
 
 ## Public ledger
 
-`GET /api/ledger?campaignId=&type=&limit=` — public events. Filter by campaign
-and/or event type. On-chain indexed rows set `verifiedOnChain: true`.
+`GET /api/ledger?campaignId=&type=&limit=&page=&verifiedOnChain=`
+
+Returns `{ "success": true, "data": [...], "meta": { page, limit, total, totalPages } }`.
+`verifiedOnChain=true|false` filters trust. On-chain indexed rows set
+`verifiedOnChain: true` and `eventTrust: "on_chain_verified"`.
+
+`GET /api/ledger/stats` includes `onChainLedgerEvents` and `demoLedgerEvents`.
+
+## Admin indexer
+
+- `GET /api/admin/indexer` — escrow campaign count, cursors, `lastRun`
+- `POST /api/admin/indexer/run` — body
+  `{ limitPerContract?, maxPages?, campaignId?, backfill?, lookbackLedgers? }`
+
+Internal cron/API-key routes under `/api/internal/indexer/*` accept the same options.
 
 ## Milestones
 

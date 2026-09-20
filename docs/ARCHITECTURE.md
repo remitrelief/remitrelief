@@ -1,4 +1,4 @@
-# RemitRelief Architecture (Phase 7)
+# RemitRelief Architecture (Phase 8)
 
 ```text
 React Frontend (WalletContext + AuthContext)
@@ -76,8 +76,16 @@ index is present.
 ADMIN users get a moderation queue, organization status approvals (not KYC),
 audit feed, and indexer status. Organizers create organizations and attach
 **VERIFIED** orgs to campaigns. Public ledger supports `campaignId` filtering;
-campaign detail surfaces proofs and activity. The light indexer pages through
-all escrow-bound campaigns (not a single 100-row page).
+campaign detail surfaces proofs and activity.
+
+## Indexer & transparency (Phase 8)
+
+The light indexer walks **all pages** of Soroban contract events for each bound
+escrow (bounded by `maxPages`), optionally **backfills** by clearing cursors,
+persists a last-run summary, and can be triggered by ADMIN or the internal cron
+key. Ledger listing is paginated and separates on-chain-verified events from
+demo/application events. Indexed amounts and milestone indexes are parsed from
+contract event topics/data when present.
 
 ## Auth
 

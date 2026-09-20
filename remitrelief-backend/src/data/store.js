@@ -1188,10 +1188,24 @@ export function setIndexerCursor(key, value) {
   return value;
 }
 
-export function listLedger({ campaignId, type, limit = 50 } = {}) {
+export function clearIndexerCursor(key) {
+  if (!db.indexedCursors) db.indexedCursors = {};
+  delete db.indexedCursors[key];
+  saveState();
+}
+
+export function listLedger({ campaignId, type, limit = 50, page = 1, verifiedOnChain } = {}) {
   let rows = campaignId ? db.ledger.filter((e) => e.campaignId === campaignId) : [...db.ledger];
   if (type) rows = rows.filter((e) => e.type === type);
-  return rows.slice(0, limit);
+  if (verifiedOnChain === true) rows = rows.filter((e) => e.verifiedOnChain);
+  if (verifiedOnChain === false) rows = rows.filter((e) => !e.verifiedOnChain);
+  const total = rows.length;
+  const safeLimit = Math.min(100, Math.max(1, Number(limit) || 50));
+  const safePage = Math.max(1, Number(page) || 1);
+  const totalPages = Math.max(1, Math.ceil(total / safeLimit));
+  const offset = (safePage - 1) * safeLimit;
+  const items = rows.slice(offset, offset + safeLimit);
+  return { items, page: safePage, limit: safeLimit, total, totalPages };
 }
 
 export function getStats() {
@@ -1214,6 +1228,8 @@ export function getStats() {
     milestonesTotal: campaigns.reduce((sum, c) => sum + Number(c.milestonesTotal || 0), 0),
     donationsCount: donations.length,
     amountReleased: released,
+    onChainLedgerEvents: db.ledger.filter((e) => e.verifiedOnChain).length,
+    demoLedgerEvents: db.ledger.filter((e) => !e.verifiedOnChain).length,
     categories: [...new Set(campaigns.map((c) => c.category).filter(Boolean))],
   };
 }

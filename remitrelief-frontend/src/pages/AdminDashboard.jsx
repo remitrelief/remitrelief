@@ -11,6 +11,7 @@ import {
   fetchAdminIndexer,
   fetchModerationQueue,
   fetchPendingOrganizations,
+  runAdminIndexer,
   setOrganizationStatus,
   transitionCampaign,
 } from "../lib/api";
@@ -29,6 +30,7 @@ export default function AdminDashboard() {
   const [audits, setAudits] = useState([]);
   const [indexer, setIndexer] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [indexerBusy, setIndexerBusy] = useState(false);
   const [error, setError] = useState("");
   const [reason, setReason] = useState("");
 
@@ -192,9 +194,68 @@ export default function AdminDashboard() {
       <section className="panel">
         <h2>Indexer status</h2>
         {indexer ? (
-          <p>
-            Escrow campaigns tracked: <strong>{indexer.escrowCampaigns || 0}</strong>
-          </p>
+          <>
+            <p>
+              Escrow campaigns tracked: <strong>{indexer.escrowCampaigns || 0}</strong>
+            </p>
+            {indexer.lastRun && (
+              <p className="muted">
+                Last run: scanned {indexer.lastRun.scanned}, appended {indexer.lastRun.appended},
+                duplicates {indexer.lastRun.duplicates}
+                {indexer.lastRun.finishedAt
+                  ? ` · ${new Date(indexer.lastRun.finishedAt).toLocaleString()}`
+                  : ""}
+              </p>
+            )}
+            <div className="management-actions">
+              <button
+                type="button"
+                className="compact"
+                disabled={indexerBusy}
+                onClick={() =>
+                  run(async () => {
+                    setIndexerBusy(true);
+                    try {
+                      await runAdminIndexer({});
+                    } finally {
+                      setIndexerBusy(false);
+                    }
+                  }, "Indexer run complete")
+                }
+              >
+                {indexerBusy ? "Running…" : "Run indexer"}
+              </button>
+              <button
+                type="button"
+                className="secondary compact"
+                disabled={indexerBusy}
+                onClick={() =>
+                  run(async () => {
+                    setIndexerBusy(true);
+                    try {
+                      await runAdminIndexer({ backfill: true });
+                    } finally {
+                      setIndexerBusy(false);
+                    }
+                  }, "Indexer backfill complete")
+                }
+              >
+                Backfill (reset cursors)
+              </button>
+            </div>
+            {indexer.cursors?.length > 0 && (
+              <ul className="admin-queue">
+                {indexer.cursors.slice(0, 8).map((row) => (
+                  <li key={row.campaignId}>
+                    <div>
+                      <code>{row.campaignId}</code>
+                      <span className="muted"> · cursor {row.cursor || "none"}</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
         ) : (
           <p className="muted">Indexer status unavailable.</p>
         )}

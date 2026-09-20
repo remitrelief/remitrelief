@@ -211,7 +211,14 @@ export function fetchLedger(params = {}) {
   const qs = new URLSearchParams(
     Object.fromEntries(Object.entries(params).filter(([, v]) => v != null && v !== ""))
   ).toString();
-  return request(`/ledger${qs ? `?${qs}` : ""}`);
+  return request(`/ledger${qs ? `?${qs}` : ""}`, { envelope: true });
+}
+
+export function runAdminIndexer(body = {}) {
+  return request("/admin/indexer/run", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
 }
 
 export function fetchDonations(params = {}) {

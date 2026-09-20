@@ -159,7 +159,8 @@ describe("Phase 7 operator workspaces & transparency", () => {
   it("filters ledger events by campaignId", async () => {
     const ledger = await api(`/api/ledger?campaignId=${campaign.id}&limit=20`);
     assert.equal(ledger.response.status, 200);
-    assert.ok(Array.isArray(ledger.payload));
-    assert.ok(ledger.payload.every((event) => event.campaignId === campaign.id));
+    assert.equal(ledger.payload.success, true);
+    assert.ok(Array.isArray(ledger.payload.data));
+    assert.ok(ledger.payload.data.every((event) => event.campaignId === campaign.id));
   });
 });

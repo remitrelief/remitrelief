@@ -9,24 +9,48 @@ const router = Router();
 
 router.get("/", async (req, res) => {
   try {
-    const { campaignId, type, limit } = req.query;
-    const events = await ledgerRepo.list({
+    const { campaignId, type, limit, page, verifiedOnChain } = req.query;
+    const verifiedFilter =
+      verifiedOnChain === "true" || verifiedOnChain === "1"
+        ? true
+        : verifiedOnChain === "false" || verifiedOnChain === "0"
+          ? false
+          : undefined;
+    const result = await ledgerRepo.list({
       campaignId,
       type,
       limit: limit ? Number(limit) : 50,
+      page: page ? Number(page) : 1,
+      verifiedOnChain: verifiedFilter,
     });
+    const rows = Array.isArray(result) ? result : result.items || [];
 
     const enriched = [];
-    for (const event of events) {
+    for (const event of rows) {
       const campaign = event.campaignId ? await campaignsRepo.getById(event.campaignId) : null;
       enriched.push({
         ...event,
-        campaignName: campaign?.name || event.campaignId,
+        campaignName: campaign?.title || campaign?.name || event.campaignId,
         location: campaign?.location,
         eventTrust: event.verifiedOnChain ? "on_chain_verified" : "demo_or_application",
       });
     }
-    res.json(enriched);
+
+    const meta = Array.isArray(result)
+      ? {
+          page: 1,
+          limit: enriched.length,
+          total: enriched.length,
+          totalPages: 1,
+        }
+      : {
+          page: result.page,
+          limit: result.limit,
+          total: result.total,
+          totalPages: result.totalPages,
+        };
+
+    res.json({ success: true, data: enriched, meta });
   } catch (err) {
     const { status, body } = toErrorResponse(err);
     res.status(status).json(body);

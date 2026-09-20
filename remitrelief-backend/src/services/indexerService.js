@@ -5,8 +5,11 @@ import {
   indexerRepo,
   milestonesRepo,
 } from "../repositories/index.js";
-import { fetchEscrowEvents } from "../blockchain/soroban/events.js";
+import { fetchEscrowEventsPages } from "../blockchain/soroban/events.js";
 import { getSorobanServer } from "../blockchain/soroban/client.js";
+
+const LAST_RUN_KEY = "indexer:lastRun";
+const DEFAULT_LOOKBACK = 10_000;
 
 function parseMilestoneIndex(ev) {
   if (ev.milestoneIndex != null && Number.isFinite(Number(ev.milestoneIndex))) {
@@ -19,12 +22,13 @@ function parseMilestoneIndex(ev) {
   return null;
 }
 
-/**
- * Poll Soroban events for campaigns with escrow addresses and append ledger rows.
- * Also lightly syncs relational milestone verified/released flags when index is known.
- * Idempotent on (txHash, type, campaignId).
- */
-export async function runIndexer({ limitPerContract = 50 } = {}) {
+async function listEscrowCampaigns({ campaignId } = {}) {
+  if (campaignId) {
+    const campaign = await campaignsRepo.getById(campaignId);
+    if (!campaign?.escrowAddress) return [];
+    return [campaign];
+  }
+
   const campaigns = [];
   let page = 1;
   let totalPages = 1;
@@ -37,6 +41,25 @@ export async function runIndexer({ limitPerContract = 50 } = {}) {
     }
     page += 1;
   } while (page <= totalPages);
+  return campaigns;
+}
+
+/**
+ * Poll Soroban events for campaigns with escrow addresses and append ledger rows.
+ * Also lightly syncs relational milestone verified/released flags when index is known.
+ * Idempotent on (txHash, type, campaignId).
+ *
+ * @param {{ limitPerContract?: number, maxPages?: number, campaignId?: string, backfill?: boolean, lookbackLedgers?: number }} options
+ */
+export async function runIndexer({
+  limitPerContract = 50,
+  maxPages = 20,
+  campaignId,
+  backfill = false,
+  lookbackLedgers = DEFAULT_LOOKBACK,
+} = {}) {
+  const campaigns = await listEscrowCampaigns({ campaignId });
+  const startedAt = new Date().toISOString();
 
   const summary = {
     campaigns: campaigns.length,
@@ -44,7 +67,12 @@ export async function runIndexer({ limitPerContract = 50 } = {}) {
     appended: 0,
     duplicates: 0,
     synced: 0,
+    pages: 0,
+    backfill: Boolean(backfill),
+    campaignId: campaignId || null,
     errors: [],
+    startedAt,
+    finishedAt: null,
   };
 
   let latestNetworkLedger = null;
@@ -61,25 +89,32 @@ export async function runIndexer({ limitPerContract = 50 } = {}) {
   for (const campaign of campaigns) {
     const cursorKey = `escrow:${campaign.escrowAddress}`;
     try {
-      const storedCursor = await indexerRepo.getCursor(cursorKey);
+      if (backfill && indexerRepo.clearCursor) {
+        await indexerRepo.clearCursor(cursorKey);
+      }
+
+      const storedCursor = backfill ? null : await indexerRepo.getCursor(cursorKey);
       const startLedger =
         !storedCursor && latestNetworkLedger
-          ? Math.max(1, Number(latestNetworkLedger) - 10_000)
+          ? Math.max(1, Number(latestNetworkLedger) - Number(lookbackLedgers || DEFAULT_LOOKBACK))
           : undefined;
 
-      const { events, cursor } = await fetchEscrowEvents({
+      const { events, cursor, pages } = await fetchEscrowEventsPages({
         contractId: campaign.escrowAddress,
         cursor: storedCursor || undefined,
         startLedger,
         limit: limitPerContract,
+        maxPages,
       });
 
+      summary.pages += pages || 0;
       summary.scanned += events.length;
 
       for (const ev of events) {
         if (!ev.txHash || ev.type === "init") continue;
 
         const milestoneIndex = parseMilestoneIndex(ev);
+        const amount = ev.amount != null && Number.isFinite(Number(ev.amount)) ? Number(ev.amount) : undefined;
         const note =
           ev.type === "donation"
             ? "Donation escrowed (indexed from chain)"
@@ -93,6 +128,7 @@ export async function runIndexer({ limitPerContract = 50 } = {}) {
           actor: "indexer",
           txHash: ev.txHash,
           milestoneIndex: milestoneIndex ?? undefined,
+          amount,
           note,
           verifiedOnChain: true,
           source: "on_chain",
@@ -135,22 +171,18 @@ export async function runIndexer({ limitPerContract = 50 } = {}) {
     }
   }
 
+  summary.finishedAt = new Date().toISOString();
+  try {
+    await indexerRepo.setCursor(LAST_RUN_KEY, JSON.stringify(summary));
+  } catch (err) {
+    logger.debug("Could not persist indexer last run", { reason: err.message });
+  }
+
   return summary;
 }
 
 export async function indexerStatus() {
-  const campaigns = [];
-  let page = 1;
-  let totalPages = 1;
-  do {
-    const listed = await campaignsRepo.list({ limit: 100, page });
-    const rows = Array.isArray(listed) ? listed : listed.items || [];
-    totalPages = Array.isArray(listed) ? 1 : listed.totalPages || 1;
-    for (const row of rows) {
-      if (row.escrowAddress) campaigns.push(row);
-    }
-    page += 1;
-  } while (page <= totalPages);
+  const campaigns = await listEscrowCampaigns();
   const cursors = [];
   for (const c of campaigns) {
     const key = `escrow:${c.escrowAddress}`;
@@ -160,5 +192,18 @@ export async function indexerStatus() {
       cursor: await indexerRepo.getCursor(key),
     });
   }
-  return { escrowCampaigns: campaigns.length, cursors };
+
+  let lastRun = null;
+  try {
+    const raw = await indexerRepo.getCursor(LAST_RUN_KEY);
+    if (raw) lastRun = typeof raw === "string" ? JSON.parse(raw) : raw;
+  } catch {
+    lastRun = null;
+  }
+
+  return {
+    escrowCampaigns: campaigns.length,
+    cursors,
+    lastRun,
+  };
 }

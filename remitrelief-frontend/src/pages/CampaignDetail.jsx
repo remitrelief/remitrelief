@@ -39,12 +39,12 @@ export default function CampaignDetail() {
       const [campaignResult, updateResult, ledgerResult, proofResult] = await Promise.all([
         fetchCampaign(id),
         fetchCampaignUpdates(id).catch(() => []),
-        fetchLedger({ campaignId: id, limit: 30 }).catch(() => []),
+        fetchLedger({ campaignId: id, limit: 30 }).catch(() => ({ data: [] })),
         fetchMilestoneProofs(id).catch(() => []),
       ]);
       setCampaign(campaignResult);
       setUpdates(updateResult || campaignResult.updates || []);
-      setEvents(Array.isArray(ledgerResult) ? ledgerResult : []);
+      setEvents(Array.isArray(ledgerResult?.data) ? ledgerResult.data : []);
       setProofs(Array.isArray(proofResult) ? proofResult : []);
     } catch (err) {
       console.error(err);

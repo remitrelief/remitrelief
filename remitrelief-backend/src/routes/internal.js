@@ -36,6 +36,12 @@ router.get("/indexer/run", async (req, res) => {
     logger.info("Indexer run requested (GET/cron)");
     const summary = await runIndexer({
       limitPerContract: Number(req.query?.limitPerContract) || 50,
+      maxPages: Number(req.query?.maxPages) || 20,
+      campaignId: req.query?.campaignId || undefined,
+      backfill: req.query?.backfill === "true" || req.query?.backfill === "1",
+      lookbackLedgers: req.query?.lookbackLedgers
+        ? Number(req.query.lookbackLedgers)
+        : undefined,
     });
     res.json({ ok: true, summary });
   } catch (err) {
@@ -51,6 +57,12 @@ router.post("/indexer/run", async (req, res) => {
     logger.info("Indexer run requested");
     const summary = await runIndexer({
       limitPerContract: Number(req.body?.limitPerContract) || 50,
+      maxPages: Number(req.body?.maxPages) || 20,
+      campaignId: req.body?.campaignId || undefined,
+      backfill: Boolean(req.body?.backfill),
+      lookbackLedgers: req.body?.lookbackLedgers
+        ? Number(req.body.lookbackLedgers)
+        : undefined,
     });
     res.json({ ok: true, summary });
   } catch (err) {

@@ -116,4 +116,5 @@ export const organizationsRepo = {
 export const indexerRepo = {
   getCursor: async (key) => store.getIndexerCursor(key),
   setCursor: async (key, value) => store.setIndexerCursor(key, value),
+  clearCursor: async (key) => store.clearIndexerCursor(key),
 };

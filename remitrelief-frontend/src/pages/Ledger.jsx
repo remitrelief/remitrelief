@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { fetchLedger, fetchStats } from "../lib/api";
 import { shortenAddress } from "../lib/stellar";
+import { Pagination } from "../components/CampaignUI";
 
 const TYPES = [
   { value: "", label: "All events" },
@@ -11,11 +12,20 @@ const TYPES = [
   { value: "campaign_created", label: "Campaigns created" },
 ];
 
+const TRUST = [
+  { value: "", label: "All sources" },
+  { value: "true", label: "On-chain verified" },
+  { value: "false", label: "Demo / app" },
+];
+
 export default function Ledger() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [events, setEvents] = useState([]);
+  const [meta, setMeta] = useState({ page: 1, totalPages: 1 });
   const [stats, setStats] = useState(null);
   const [type, setType] = useState("");
+  const [trust, setTrust] = useState("");
+  const [page, setPage] = useState(1);
   const [campaignId, setCampaignId] = useState(searchParams.get("campaignId") || "");
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -29,23 +39,27 @@ export default function Ledger() {
     setLoading(true);
     Promise.all([
       fetchLedger({
-        limit: 100,
+        limit: 25,
+        page,
         type: type || undefined,
         campaignId: campaignId || undefined,
+        verifiedOnChain: trust || undefined,
       }),
       fetchStats(),
     ])
-      .then(([list, s]) => {
-        setEvents(list);
+      .then(([ledgerResult, s]) => {
+        setEvents(ledgerResult.data || []);
+        setMeta(ledgerResult.meta || { page, totalPages: 1 });
         setStats(s);
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [type, campaignId]);
+  }, [type, campaignId, trust, page]);
 
   function applyCampaignFilter(value) {
     const next = value.trim();
     setCampaignId(next);
+    setPage(1);
     const params = new URLSearchParams(searchParams);
     if (next) params.set("campaignId", next);
     else params.delete("campaignId");
@@ -60,8 +74,8 @@ export default function Ledger() {
           <h1>Relief ledger</h1>
           <p className="hero-copy">
             Donations, verifications, and releases. Events marked{" "}
-            <strong>on-chain verified</strong> were confirmed against Soroban. Demo/app events are
-            local development records and are not blockchain proof.
+            <strong>on-chain verified</strong> were confirmed against Soroban (or indexed from
+            chain). Demo/app events are local development records and are not blockchain proof.
           </p>
         </div>
       </section>
@@ -69,12 +83,16 @@ export default function Ledger() {
       {stats && (
         <div className="stat-grid dashboard-stats">
           <div className="panel compact">
-            <p className="stat-label">Donations logged</p>
-            <strong>{stats.donationsCount}</strong>
+            <p className="stat-label">On-chain ledger events</p>
+            <strong>{stats.onChainLedgerEvents ?? 0}</strong>
           </div>
           <div className="panel compact">
-            <p className="stat-label">Total raised</p>
-            <strong>${Number(stats.totalRaised).toLocaleString()}</strong>
+            <p className="stat-label">Demo / app events</p>
+            <strong>{stats.demoLedgerEvents ?? 0}</strong>
+          </div>
+          <div className="panel compact">
+            <p className="stat-label">Verified donations</p>
+            <strong>{stats.donationsCount}</strong>
           </div>
           <div className="panel compact">
             <p className="stat-label">Released</p>
@@ -90,7 +108,25 @@ export default function Ledger() {
               key={t.value || "all"}
               type="button"
               className={`chip ${type === t.value ? "active" : ""}`}
-              onClick={() => setType(t.value)}
+              onClick={() => {
+                setType(t.value);
+                setPage(1);
+              }}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+        <div className="chip-row filter-chips" role="group" aria-label="Trust source">
+          {TRUST.map((t) => (
+            <button
+              key={t.value || "trust-all"}
+              type="button"
+              className={`chip ${trust === t.value ? "active" : ""}`}
+              onClick={() => {
+                setTrust(t.value);
+                setPage(1);
+              }}
             >
               {t.label}
             </button>
@@ -105,7 +141,11 @@ export default function Ledger() {
           />
         </label>
         {campaignId && (
-          <button type="button" className="secondary compact" onClick={() => applyCampaignFilter("")}>
+          <button
+            type="button"
+            className="secondary compact"
+            onClick={() => applyCampaignFilter("")}
+          >
             Clear campaign filter
           </button>
         )}
@@ -155,6 +195,11 @@ export default function Ledger() {
               ))}
             </ul>
           )}
+          <Pagination
+            page={meta.page || page}
+            totalPages={meta.totalPages || 1}
+            onPageChange={setPage}
+          />
         </section>
       )}
     </div>

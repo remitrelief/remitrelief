@@ -11,7 +11,7 @@ React + Vite donor experience for milestone-escrowed disaster relief on Stellar.
 - `/dashboard/campaigns` — organizer campaign list
 - `/organizations` — create/list organizations (status only, not KYC)
 - `/admin` — ADMIN moderation queue, pending orgs, audits, indexer
-- `/ledger` — public transparency ledger (`type` + `campaignId` filters)
+- `/ledger` — public transparency ledger (`type`, `campaignId`, trust, pagination)
 - `/verify` — NGO/ADMIN proof → verify → release (NGO scoped to mine)
 
 ## Setup

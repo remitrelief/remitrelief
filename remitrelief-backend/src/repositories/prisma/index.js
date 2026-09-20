@@ -517,17 +517,32 @@ export const donationsRepo = {
 };
 
 export const ledgerRepo = {
-  async list({ campaignId, type, limit = 50 } = {}) {
+  async list({ campaignId, type, limit = 50, page = 1, verifiedOnChain } = {}) {
     await ensureSeeded();
-    const rows = await getPrisma().ledgerEvent.findMany({
-      where: {
-        ...(campaignId ? { campaignId } : {}),
-        ...(type ? { type } : {}),
-      },
-      orderBy: { createdAt: "desc" },
-      take: limit,
-    });
-    return rows.map(mapLedger);
+    const where = {
+      ...(campaignId ? { campaignId } : {}),
+      ...(type ? { type } : {}),
+      ...(verifiedOnChain === true ? { verifiedOnChain: true } : {}),
+      ...(verifiedOnChain === false ? { verifiedOnChain: false } : {}),
+    };
+    const safeLimit = Math.min(100, Math.max(1, Number(limit) || 50));
+    const safePage = Math.max(1, Number(page) || 1);
+    const [total, rows] = await Promise.all([
+      getPrisma().ledgerEvent.count({ where }),
+      getPrisma().ledgerEvent.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        take: safeLimit,
+        skip: (safePage - 1) * safeLimit,
+      }),
+    ]);
+    return {
+      items: rows.map(mapLedger),
+      page: safePage,
+      limit: safeLimit,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / safeLimit)),
+    };
   },
 
   async findExisting({ txHash, type, campaignId } = {}) {
@@ -591,6 +606,10 @@ export const statsRepo = {
       where: { type: "release" },
       _sum: { amount: true },
     });
+    const [onChainLedgerEvents, demoLedgerEvents] = await Promise.all([
+      prisma.ledgerEvent.count({ where: { verifiedOnChain: true } }),
+      prisma.ledgerEvent.count({ where: { verifiedOnChain: false } }),
+    ]);
     return {
       campaignsActive: campaigns.filter((c) => c.status === "ACTIVE").length,
       totalRaised: Number(raised._sum.amount || 0),
@@ -599,6 +618,8 @@ export const statsRepo = {
       milestonesTotal: campaigns.reduce((sum, c) => sum + Number(c.milestonesTotal || 0), 0),
       donationsCount,
       amountReleased: Number(released._sum.amount || 0),
+      onChainLedgerEvents,
+      demoLedgerEvents,
       categories: [...new Set(campaigns.map((c) => c.category).filter(Boolean))],
     };
   },
@@ -638,5 +659,8 @@ export const indexerRepo = {
       update: { cursorValue: String(value) },
     });
     return value;
+  },
+  async clearCursor(key) {
+    await getPrisma().indexedCursor.deleteMany({ where: { cursorKey: key } });
   },
 };
