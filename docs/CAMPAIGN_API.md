@@ -141,6 +141,23 @@ Related codes: `PROOF_REQUIRED`, `PROOF_INVALID`, `MILESTONE_ALREADY_VERIFIED`,
 Organization verification is an application status gate. It is **not** identity
 KYC.
 
+## User verification (KYC-lite — status only)
+
+- `GET /api/verification/me` — caller's `verificationStatus`, roles, and request history
+- `POST /api/verification/request` — body `{ requestedRole: "NGO"|"RECIPIENT",
+  statement (≥20 chars), evidenceUrls?: string[] (≤5, http/https) }`; one
+  pending request at a time; sets user to `PENDING` (201)
+- `GET /api/verification/pending` — ADMIN queue
+- `POST /api/verification/:id/review` — ADMIN body
+  `{ status: "VERIFIED"|"REJECTED", reviewNote? }`; `VERIFIED` grants the
+  requested role
+
+Statuses: `UNVERIFIED` | `PENDING` | `VERIFIED` | `REJECTED` | `SUSPENDED`.
+NGO/RECIPIENT actors must be `VERIFIED` to submit proof, prepare verify, or
+verify milestones (`VERIFICATION_REQUIRED`, 403). ADMIN bypasses the gate.
+Wallets in `NGO_PUBLIC_KEYS` / `RECIPIENT_PUBLIC_KEYS` / `ADMIN_PUBLIC_KEYS`
+are seeded as `VERIFIED`. No documents are stored — URLs only.
+
 ## Admin transparency
 
 - `GET /api/admin/audits?limit=` — recent audit rows (ADMIN)

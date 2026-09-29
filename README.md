@@ -102,6 +102,8 @@ Testnet only. Not audited. Do not use with real funds.
 Phase 7 operator workspaces & transparency: see `docs/PHASE_7_REPORT.md`.
 Phase 8 indexer & transparency engine: see `docs/PHASE_8_REPORT.md`.
 
+Phase 9 KYC-lite verification (status gating, not full KYC): see `docs/PHASE_9_REPORT.md`.
+
 ## License
 
 MIT

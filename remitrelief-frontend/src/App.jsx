@@ -13,6 +13,7 @@ const CampaignManagement = lazy(() => import("./pages/CampaignManagement"));
 const DonorDashboard = lazy(() => import("./pages/DonorDashboard"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 const OrganizationWorkspace = lazy(() => import("./pages/OrganizationWorkspace"));
+const VerificationWorkspace = lazy(() => import("./pages/VerificationWorkspace"));
 const Ledger = lazy(() => import("./pages/Ledger"));
 const VerifyPage = lazy(() => import("./pages/VerifyPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -64,6 +65,14 @@ export default function App() {
                   element={
                     <ProtectedRoute>
                       <OrganizationWorkspace />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="verification"
+                  element={
+                    <ProtectedRoute>
+                      <VerificationWorkspace />
                     </ProtectedRoute>
                   }
                 />

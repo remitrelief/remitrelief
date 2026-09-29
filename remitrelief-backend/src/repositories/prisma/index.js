@@ -46,6 +46,12 @@ function primaryRole(roles) {
 function mapUser(u) {
   if (!u) return null;
   const roles = normalizeRoles(u.roles || [u.role]);
+  const profileStatus = u.profile?.verificationStatus;
+  const verificationStatus =
+    profileStatus ||
+    (roles.includes(Roles.ADMIN) || roles.includes(Roles.NGO) || roles.includes(Roles.RECIPIENT)
+      ? "VERIFIED"
+      : "UNVERIFIED");
   return {
     id: u.id,
     publicKey: u.walletAddress,
@@ -53,6 +59,7 @@ function mapUser(u) {
     roles,
     role: u.role || primaryRole(roles),
     status: u.status || "ACTIVE",
+    verificationStatus,
     createdAt: u.createdAt?.toISOString?.() || u.createdAt,
     updatedAt: u.updatedAt?.toISOString?.() || u.updatedAt,
     lastLoginAt: u.lastLoginAt?.toISOString?.() || u.lastLoginAt,
@@ -117,12 +124,18 @@ async function ensureSeeded() {
 
 export const usersRepo = {
   async getByPublicKey(publicKey) {
-    const u = await getPrisma().user.findUnique({ where: { walletAddress: publicKey } });
+    const u = await getPrisma().user.findUnique({
+      where: { walletAddress: publicKey },
+      include: { profile: true },
+    });
     return mapUser(u);
   },
 
   async findById(id) {
-    const u = await getPrisma().user.findUnique({ where: { id } });
+    const u = await getPrisma().user.findUnique({
+      where: { id },
+      include: { profile: true },
+    });
     return mapUser(u);
   },
 
@@ -130,7 +143,14 @@ export const usersRepo = {
     const prisma = getPrisma();
     const roles = seedRolesFor(publicKey);
     const role = primaryRole(roles);
-    const existing = await prisma.user.findUnique({ where: { walletAddress: publicKey } });
+    const verificationStatus =
+      roles.includes(Roles.ADMIN) || roles.includes(Roles.NGO) || roles.includes(Roles.RECIPIENT)
+        ? "VERIFIED"
+        : "UNVERIFIED";
+    const existing = await prisma.user.findUnique({
+      where: { walletAddress: publicKey },
+      include: { profile: true },
+    });
     if (!existing) {
       const created = await prisma.user.create({
         data: {
@@ -139,8 +159,9 @@ export const usersRepo = {
           roles,
           status: "ACTIVE",
           lastLoginAt: new Date(),
-          profile: { create: {} },
+          profile: { create: { verificationStatus } },
         },
+        include: { profile: true },
       });
       return mapUser(created);
     }
@@ -151,7 +172,17 @@ export const usersRepo = {
         roles: merged,
         role: primaryRole(merged),
         lastLoginAt: new Date(),
+        profile: {
+          upsert: {
+            create: {
+              verificationStatus:
+                existing.profile?.verificationStatus || verificationStatus,
+            },
+            update: {},
+          },
+        },
       },
+      include: { profile: true },
     });
     return mapUser(updated);
   },
@@ -168,8 +199,23 @@ export const usersRepo = {
     const updated = await prisma.user.update({
       where: { id: user.id },
       data: { roles, role: primaryRole(roles) },
+      include: { profile: true },
     });
     return mapUser(updated);
+  },
+
+  async setVerificationStatus(userId, status) {
+    const prisma = getPrisma();
+    await prisma.profile.upsert({
+      where: { userId },
+      create: { userId, verificationStatus: status },
+      update: { verificationStatus: status },
+    });
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { profile: true },
+    });
+    return mapUser(user);
   },
 
   async updateStatus(userId, status) {
@@ -636,6 +682,7 @@ export const statsRepo = {
       prisma.authChallenge.deleteMany(),
       prisma.session.deleteMany(),
       prisma.auditLog.deleteMany(),
+      prisma.verificationRequest.deleteMany(),
       prisma.organizationMember.deleteMany(),
       prisma.organization.deleteMany(),
       prisma.profile.deleteMany(),
@@ -662,5 +709,67 @@ export const indexerRepo = {
   },
   async clearCursor(key) {
     await getPrisma().indexedCursor.deleteMany({ where: { cursorKey: key } });
+  },
+};
+
+function mapVerificationRequest(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    userId: row.userId,
+    walletAddress: row.walletAddress,
+    requestedRole: row.requestedRole,
+    statement: row.statement,
+    evidenceUrls: Array.isArray(row.evidenceUrls) ? row.evidenceUrls : [],
+    status: row.status,
+    reviewNote: row.reviewNote,
+    reviewedById: row.reviewedById,
+    createdAt: row.createdAt?.toISOString?.() || row.createdAt,
+    updatedAt: row.updatedAt?.toISOString?.() || row.updatedAt,
+    reviewedAt: row.reviewedAt?.toISOString?.() || row.reviewedAt,
+  };
+}
+
+export const verificationRepo = {
+  async create(input) {
+    const row = await getPrisma().verificationRequest.create({
+      data: {
+        userId: input.userId,
+        walletAddress: input.walletAddress || null,
+        requestedRole: input.requestedRole,
+        statement: input.statement,
+        evidenceUrls: input.evidenceUrls || [],
+        status: "PENDING",
+      },
+    });
+    return mapVerificationRequest(row);
+  },
+  async findById(id) {
+    const row = await getPrisma().verificationRequest.findUnique({ where: { id } });
+    return mapVerificationRequest(row);
+  },
+  async list({ status, userId } = {}) {
+    const rows = await getPrisma().verificationRequest.findMany({
+      where: {
+        ...(status ? { status } : {}),
+        ...(userId ? { userId } : {}),
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    return rows.map(mapVerificationRequest);
+  },
+  async update(id, patch) {
+    const row = await getPrisma().verificationRequest.update({
+      where: { id },
+      data: {
+        ...(patch.status ? { status: patch.status } : {}),
+        ...(patch.reviewNote !== undefined ? { reviewNote: patch.reviewNote } : {}),
+        ...(patch.reviewedById !== undefined ? { reviewedById: patch.reviewedById } : {}),
+        ...(patch.reviewedAt
+          ? { reviewedAt: new Date(patch.reviewedAt) }
+          : {}),
+      },
+    });
+    return mapVerificationRequest(row);
   },
 };

@@ -75,6 +75,7 @@ export default function Layout() {
           <NavLink to="/create-campaign">Create</NavLink>
           <NavLink to="/dashboard/campaigns">My campaigns</NavLink>
           <NavLink to="/organizations">Organizations</NavLink>
+          <NavLink to="/verification">Verification</NavLink>
           <NavLink to="/ledger">Ledger</NavLink>
           <NavLink to="/dashboard">Dashboard</NavLink>
           {(roles?.includes("NGO") || roles?.includes("ADMIN")) && (

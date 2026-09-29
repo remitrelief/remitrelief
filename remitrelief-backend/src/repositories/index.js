@@ -39,4 +39,5 @@ export const auditRepo = impl.auditRepo || {
 };
 export const profilesRepo = impl.profilesRepo || null;
 export const organizationsRepo = impl.organizationsRepo || null;
+export const verificationRepo = impl.verificationRepo || null;
 export const storeDriverName = driver;

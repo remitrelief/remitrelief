@@ -152,6 +152,22 @@ export function fetchAdminIndexer() {
   return request("/admin/indexer");
 }
 
+export function fetchMyVerification() {
+  return request("/verification/me");
+}
+
+export function submitVerificationRequest(body) {
+  return request("/verification/request", { method: "POST", body: JSON.stringify(body) });
+}
+
+export function fetchPendingVerifications() {
+  return request("/verification/pending");
+}
+
+export function reviewVerification(id, body) {
+  return request(`/verification/${id}/review`, { method: "POST", body: JSON.stringify(body) });
+}
+
 export function submitCampaign(id) {
   return request(`/campaigns/${id}/submit`, { method: "POST", body: JSON.stringify({}) });
 }

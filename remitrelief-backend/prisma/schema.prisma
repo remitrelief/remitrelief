@@ -113,6 +113,14 @@ enum CampaignMediaType {
   DOCUMENT
 }
 
+enum VerificationStatus {
+  UNVERIFIED
+  PENDING
+  VERIFIED
+  REJECTED
+  SUSPENDED
+}
+
 model User {
   id            String     @id @default(cuid())
   walletAddress String     @unique @map("wallet_address")
@@ -133,6 +141,7 @@ model User {
   beneficiaryCampaigns Campaign[]    @relation("CampaignRecipient")
   campaignUpdates CampaignUpdate[]
   donations     Donation[]
+  verificationRequests VerificationRequest[]
 
   @@index([role])
   @@index([status])
@@ -140,18 +149,40 @@ model User {
 }
 
 model Profile {
-  id          String   @id @default(cuid())
-  userId      String   @unique @map("user_id")
-  displayName String?  @map("display_name")
-  avatarUrl   String?  @map("avatar_url")
-  bio         String?
-  country     String?
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id                   String              @id @default(cuid())
+  userId               String              @unique @map("user_id")
+  displayName          String?             @map("display_name")
+  avatarUrl            String?             @map("avatar_url")
+  bio                  String?
+  country              String?
+  verificationStatus   VerificationStatus  @default(UNVERIFIED) @map("verification_status")
+  createdAt            DateTime            @default(now()) @map("created_at")
+  updatedAt            DateTime            @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("profiles")
+}
+
+model VerificationRequest {
+  id             String             @id @default(cuid())
+  userId         String             @map("user_id")
+  walletAddress  String?            @map("wallet_address")
+  requestedRole  UserRole           @map("requested_role")
+  statement      String
+  evidenceUrls   Json               @default("[]") @map("evidence_urls")
+  status         VerificationStatus @default(PENDING)
+  reviewNote     String?            @map("review_note")
+  reviewedById   String?            @map("reviewed_by_id")
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
+  reviewedAt     DateTime?          @map("reviewed_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([userId])
+  @@map("verification_requests")
 }
 
 model Session {

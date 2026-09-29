@@ -195,6 +195,7 @@ export async function completeLogin({ publicKey, nonce, signature, signedMessage
       role: user.role || roles[0],
       permissions: permissionsForRoles(roles),
       status: user.status || "ACTIVE",
+      verificationStatus: user.verificationStatus || "UNVERIFIED",
     },
   };
 }
@@ -228,6 +229,7 @@ export async function resolveSession(sessionId) {
     roles,
     role: user?.role || roles[0],
     status: user?.status || "ACTIVE",
+    verificationStatus: user?.verificationStatus || "UNVERIFIED",
     permissions: permissionsForRoles(roles),
     expiresAt: session.expiresAt,
   };
@@ -259,6 +261,7 @@ export async function getMeFromSession(sessionId) {
       role: ctx.role,
       roles: ctx.roles,
       status: ctx.status,
+      verificationStatus: ctx.verificationStatus,
       permissions: ctx.permissions,
     },
     sessionId: ctx.sessionId,

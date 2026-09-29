@@ -67,6 +67,7 @@ export const usersRepo = {
   findById: async (id) => store.getUser(id),
   upsertFromLogin: async (publicKey) => store.upsertUser(publicKey),
   addRole: async (publicKey, role) => store.addUserRole(publicKey, role),
+  setVerificationStatus: async (userId, status) => store.setUserVerificationStatus(userId, status),
   updateStatus: async (userId, status) => {
     const user = store.getUser(userId);
     if (!user) return null;
@@ -79,6 +80,13 @@ export const usersRepo = {
   saveChallenge: async (row) => store.saveAuthChallenge(row),
   getChallenge: async (publicKey, nonce) => store.getAuthChallenge(publicKey, nonce),
   consumeChallenge: async (publicKey, nonce) => store.consumeAuthChallenge(publicKey, nonce),
+};
+
+export const verificationRepo = {
+  create: async (input) => store.createVerificationRequest(input),
+  findById: async (id) => store.getVerificationRequest(id),
+  list: async (filters) => store.listVerificationRequests(filters),
+  update: async (id, patch) => store.updateVerificationRequest(id, patch),
 };
 
 /** SessionRepository — Phase 3 can swap to PostgreSQL without rewriting auth services. */

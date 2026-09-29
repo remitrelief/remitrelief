@@ -238,6 +238,7 @@ const SEED = {
   authChallenges: [],
   sessions: [],
   indexedCursors: {},
+  verificationRequests: [],
 };
 
 const GRADIENTS = [
@@ -273,6 +274,7 @@ function loadState() {
     if (!parsed.campaignMedia) parsed.campaignMedia = [];
     if (!parsed.milestoneProofs) parsed.milestoneProofs = [];
     if (!parsed.auditLogs) parsed.auditLogs = [];
+    if (!parsed.verificationRequests) parsed.verificationRequests = [];
     if (DEMO_ESCROW) {
       const oaxaca = parsed.campaigns?.find((c) => c.id === "flood-relief-oaxaca");
       if (oaxaca) oaxaca.escrowAddress = DEMO_ESCROW;
@@ -926,32 +928,52 @@ export function getUser(publicKey) {
   if (!user) return null;
   const { normalizeRoles } = requireRoles();
   const status = (user.status || "ACTIVE").toUpperCase();
+  const roles = normalizeRoles(user.roles || []);
+  const verificationStatus = resolveVerificationStatus(user, roles);
   return {
     id: user.id || user.publicKey,
     publicKey: user.publicKey || user.walletAddress,
     walletAddress: user.publicKey || user.walletAddress,
-    roles: normalizeRoles(user.roles || []),
-    role: user.role || normalizeRoles(user.roles || [])[0],
+    roles,
+    role: user.role || roles[0],
     status: status === "ACTIVE" || status === "SUSPENDED" || status === "PENDING" || status === "DEACTIVATED"
       ? status
       : "ACTIVE",
+    verificationStatus,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt || user.lastLoginAt,
     lastLoginAt: user.lastLoginAt,
   };
 }
 
-export function upsertUser(publicKey, { addRoles = [], status } = {}) {
+function resolveVerificationStatus(user, roles = []) {
+  const existing = String(user.verificationStatus || "").toUpperCase();
+  if (["UNVERIFIED", "PENDING", "VERIFIED", "REJECTED", "SUSPENDED"].includes(existing)) {
+    return existing;
+  }
+  if (roles.includes("ADMIN") || roles.includes("NGO") || roles.includes("RECIPIENT")) {
+    return "VERIFIED";
+  }
+  return "UNVERIFIED";
+}
+
+export function upsertUser(publicKey, { addRoles = [], status, verificationStatus } = {}) {
   if (!db.users) db.users = [];
   const { normalizeRoles } = requireRoles();
   let user = db.users.find((u) => u.publicKey === publicKey || u.id === publicKey);
   if (!user) {
+    const seeded = seedRolesFor(publicKey);
     user = {
       id: publicKey,
       publicKey,
       walletAddress: publicKey,
-      roles: seedRolesFor(publicKey),
+      roles: seeded,
       status: status || "ACTIVE",
+      verificationStatus:
+        verificationStatus ||
+        (seeded.includes("ADMIN") || seeded.includes("NGO") || seeded.includes("RECIPIENT")
+          ? "VERIFIED"
+          : "UNVERIFIED"),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       lastLoginAt: new Date().toISOString(),
@@ -962,10 +984,14 @@ export function upsertUser(publicKey, { addRoles = [], status } = {}) {
     user.updatedAt = user.lastLoginAt;
     user.roles = normalizeRoles([...(user.roles || []), ...seedRolesFor(publicKey)]);
     if (status) user.status = status;
+    if (!user.verificationStatus) {
+      user.verificationStatus = resolveVerificationStatus(user, user.roles);
+    }
   }
   if (addRoles.length) {
     user.roles = normalizeRoles([...(user.roles || []), ...addRoles]);
   }
+  if (verificationStatus) user.verificationStatus = verificationStatus;
   user.role = user.roles.includes("ADMIN")
     ? "ADMIN"
     : user.roles.includes("NGO")
@@ -979,6 +1005,66 @@ export function upsertUser(publicKey, { addRoles = [], status } = {}) {
 
 export function addUserRole(publicKey, role) {
   return upsertUser(publicKey, { addRoles: [role] });
+}
+
+export function setUserVerificationStatus(userId, verificationStatus) {
+  if (!db.users) db.users = [];
+  const user = db.users.find(
+    (u) => u.id === userId || u.publicKey === userId || u.walletAddress === userId
+  );
+  if (!user) return null;
+  user.verificationStatus = String(verificationStatus || "UNVERIFIED").toUpperCase();
+  user.updatedAt = new Date().toISOString();
+  saveState();
+  return getUser(user.publicKey || user.id);
+}
+
+export function createVerificationRequest(input) {
+  if (!db.verificationRequests) db.verificationRequests = [];
+  const row = {
+    id: uid("vrf"),
+    userId: input.userId,
+    walletAddress: input.walletAddress || null,
+    requestedRole: String(input.requestedRole || "NGO").toUpperCase(),
+    statement: input.statement || "",
+    evidenceUrls: Array.isArray(input.evidenceUrls) ? input.evidenceUrls : [],
+    status: "PENDING",
+    reviewNote: null,
+    reviewedById: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    reviewedAt: null,
+  };
+  db.verificationRequests.unshift(row);
+  saveState();
+  return row;
+}
+
+export function getVerificationRequest(id) {
+  if (!db.verificationRequests) db.verificationRequests = [];
+  return db.verificationRequests.find((item) => item.id === id) || null;
+}
+
+export function listVerificationRequests({ status, userId } = {}) {
+  if (!db.verificationRequests) db.verificationRequests = [];
+  return db.verificationRequests.filter((item) => {
+    if (status && item.status !== status) return false;
+    if (userId && item.userId !== userId) return false;
+    return true;
+  });
+}
+
+export function updateVerificationRequest(id, patch) {
+  if (!db.verificationRequests) db.verificationRequests = [];
+  const index = db.verificationRequests.findIndex((item) => item.id === id);
+  if (index < 0) return null;
+  db.verificationRequests[index] = {
+    ...db.verificationRequests[index],
+    ...patch,
+    updatedAt: new Date().toISOString(),
+  };
+  saveState();
+  return db.verificationRequests[index];
 }
 
 export function createOrganization(input) {
@@ -1240,6 +1326,7 @@ export function resetStore() {
   next.authChallenges = [];
   next.sessions = [];
   next.indexedCursors = {};
+  next.verificationRequests = [];
   Object.assign(db, next);
   db.campaigns[0].escrowAddress = DEMO_ESCROW;
   saveState();

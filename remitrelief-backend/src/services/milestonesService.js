@@ -15,6 +15,7 @@ import {
   submitSignedXdr,
   verifyMilestoneVerificationTransaction,
 } from "../blockchain/soroban/index.js";
+import { assertActorVerified } from "./verificationService.js";
 
 function optionalHttpUrl(value, field) {
   if (!value) return null;
@@ -86,6 +87,7 @@ export async function submitProof({
   evidenceUrls = [],
   actor,
 }) {
+  await assertActorVerified(actor, { action: "submitting milestone proof" });
   if (campaignId == null || milestoneIndex === undefined) {
     throw new AppError(ErrorCodes.INVALID_REQUEST, "campaignId and milestoneIndex are required");
   }
@@ -145,7 +147,10 @@ export async function listProofs(campaignId, { milestoneIndex } = {}) {
   return proofsRepo.listByCampaign(campaign.id, { milestoneIndex });
 }
 
-export async function prepareVerify({ campaignId, milestoneIndex, verifierPublicKey }) {
+export async function prepareVerify({ campaignId, milestoneIndex, verifierPublicKey, actor }) {
+  if (actor) {
+    await assertActorVerified(actor, { action: "preparing milestone verification" });
+  }
   if (!campaignId || milestoneIndex === undefined || !verifierPublicKey) {
     throw new AppError(ErrorCodes.INVALID_REQUEST, "missing required fields");
   }
@@ -182,7 +187,11 @@ export async function verifyMilestone({
   proofNote = "",
   demo = false,
   autoRelease = false,
+  actor,
 }) {
+  if (actor) {
+    await assertActorVerified(actor, { action: "verifying milestones" });
+  }
   const cid = campaignId || id;
   const campaign = await requireActiveCampaign(cid);
   const boundEscrow = resolveBoundEscrow(campaign, clientEscrow);

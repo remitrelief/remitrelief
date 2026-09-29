@@ -57,6 +57,7 @@ router.post(
         campaignId: body.campaignId || req.params.id,
         milestoneIndex: body.milestoneIndex,
         verifierPublicKey: req.user.walletAddress,
+        actor: req.user,
       });
       res.json(result);
     } catch (err) {
@@ -81,6 +82,7 @@ router.post("/:id/verify", requireRole(Roles.NGO, Roles.ADMIN), async (req, res)
       demo: body.demo,
       autoRelease: body.autoRelease === true,
       verifierPublicKey: req.user.walletAddress,
+      actor: req.user,
     });
     res.json(result);
   } catch (err) {

@@ -1,4 +1,4 @@
-# RemitRelief Architecture (Phase 8)
+# RemitRelief Architecture (Phase 9)
 
 ```text
 React Frontend (WalletContext + AuthContext)
@@ -86,6 +86,15 @@ persists a last-run summary, and can be triggered by ADMIN or the internal cron
 key. Ledger listing is paginated and separates on-chain-verified events from
 demo/application events. Indexed amounts and milestone indexes are parsed from
 contract event topics/data when present.
+
+## KYC-lite verification (Phase 9)
+
+Users carry a `verificationStatus` (stored on `Profile` in Prisma, on the user
+row in the JSON store). Applicants request the NGO or RECIPIENT role with a
+statement and optional evidence URLs; ADMIN approves or rejects from a queue.
+Approval grants the role and sets `VERIFIED`. `assertActorVerified` gates proof
+submission and milestone verification for non-admin actors. This is an
+application status gate only — no identity documents are collected or stored.
 
 ## Auth
 

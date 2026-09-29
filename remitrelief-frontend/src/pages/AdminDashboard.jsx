@@ -11,6 +11,8 @@ import {
   fetchAdminIndexer,
   fetchModerationQueue,
   fetchPendingOrganizations,
+  fetchPendingVerifications,
+  reviewVerification,
   runAdminIndexer,
   setOrganizationStatus,
   transitionCampaign,
@@ -27,6 +29,7 @@ export default function AdminDashboard() {
   const toast = useToast();
   const [queue, setQueue] = useState([]);
   const [orgs, setOrgs] = useState([]);
+  const [verifications, setVerifications] = useState([]);
   const [audits, setAudits] = useState([]);
   const [indexer, setIndexer] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -38,14 +41,17 @@ export default function AdminDashboard() {
     setLoading(true);
     setError("");
     try {
-      const [queueResult, pendingOrgs, auditResult, indexerResult] = await Promise.all([
-        fetchModerationQueue({ limit: 50 }),
-        fetchPendingOrganizations().catch(() => []),
-        fetchAdminAudits({ limit: 30 }).catch(() => []),
-        fetchAdminIndexer().catch(() => null),
-      ]);
+      const [queueResult, pendingOrgs, pendingVerifications, auditResult, indexerResult] =
+        await Promise.all([
+          fetchModerationQueue({ limit: 50 }),
+          fetchPendingOrganizations().catch(() => []),
+          fetchPendingVerifications().catch(() => []),
+          fetchAdminAudits({ limit: 30 }).catch(() => []),
+          fetchAdminIndexer().catch(() => null),
+        ]);
       setQueue(queueResult.data || []);
       setOrgs(Array.isArray(pendingOrgs) ? pendingOrgs : []);
+      setVerifications(Array.isArray(pendingVerifications) ? pendingVerifications : []);
       setAudits(Array.isArray(auditResult) ? auditResult : []);
       setIndexer(indexerResult);
     } catch (err) {
@@ -151,6 +157,56 @@ export default function AdminDashboard() {
           Rejection reason
           <input value={reason} onChange={(event) => setReason(event.target.value)} />
         </label>
+      </section>
+
+      <section className="panel">
+        <h2>Pending identity verification</h2>
+        <p className="muted">Status gating only — not full KYC.</p>
+        {verifications.length === 0 ? (
+          <p className="muted">No verification requests awaiting review.</p>
+        ) : (
+          <ul className="admin-queue">
+            {verifications.map((item) => (
+              <li key={item.id}>
+                <div>
+                  <strong>{item.requestedRole}</strong>
+                  <span className="muted"> · {item.walletAddress || item.userId}</span>
+                  <p className="muted">{item.statement}</p>
+                </div>
+                <div className="management-actions">
+                  <button
+                    type="button"
+                    className="compact"
+                    onClick={() =>
+                      run(
+                        () => reviewVerification(item.id, { status: "VERIFIED" }),
+                        "Verification approved"
+                      )
+                    }
+                  >
+                    Verify
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary compact"
+                    onClick={() =>
+                      run(
+                        () =>
+                          reviewVerification(item.id, {
+                            status: "REJECTED",
+                            reviewNote: reason || "Needs more detail",
+                          }),
+                        "Verification rejected"
+                      )
+                    }
+                  >
+                    Reject
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="panel">
