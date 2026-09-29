@@ -149,8 +149,17 @@ KYC.
   pending request at a time; sets user to `PENDING` (201)
 - `GET /api/verification/pending` — ADMIN queue
 - `POST /api/verification/:id/review` — ADMIN body
-  `{ status: "VERIFIED"|"REJECTED", reviewNote? }`; `VERIFIED` grants the
-  requested role
+  `{ status: "VERIFIED"|"REJECTED", reviewNote? (≤1000) }`; `VERIFIED` grants the
+  requested role. A user who is already `VERIFIED` stays `VERIFIED` if a
+  second-role request is rejected; a `SUSPENDED` user stays suspended.
+- `POST /api/verification/users/:walletAddress/status` — ADMIN body
+  `{ status: "SUSPENDED"|"VERIFIED"|"UNVERIFIED", reason? (≤1000) }`.
+  Rejects self-changes and admin targets (admins come from `ADMIN_PUBLIC_KEYS`);
+  404 for unknown wallets. Audited as `USER_VERIFICATION_STATUS_SET`.
+
+Suspended users cannot submit a new request (403) and are blocked from proof and
+verify actions. Statement max 2000 characters; more than 5 evidence URLs is
+rejected. Write endpoints on this router are rate limited (60 per 15 minutes).
 
 Statuses: `UNVERIFIED` | `PENDING` | `VERIFIED` | `REJECTED` | `SUSPENDED`.
 NGO/RECIPIENT actors must be `VERIFIED` to submit proof, prepare verify, or

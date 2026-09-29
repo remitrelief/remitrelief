@@ -1,9 +1,11 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { connectWallet as openWalletModal, signMessage } from "../lib/wallet";
-import { shortenAddress } from "../lib/stellar";
+import { shortenAddress } from "../lib/address";
 
 const STORAGE_KEY = "remitrelief_donor";
 const WalletContext = createContext(null);
+
+// The wallet kit + Stellar SDK are ~1 MB; load them only when a wallet action happens.
+const loadWalletModule = () => import("../lib/wallet");
 
 /**
  * Wallet connection only — does NOT mean RemitRelief authenticated.
@@ -23,7 +25,8 @@ export function WalletProvider({ children }) {
     setConnecting(true);
     setError(null);
     try {
-      const pk = await openWalletModal();
+      const { connectWallet } = await loadWalletModule();
+      const pk = await connectWallet();
       setAddress(pk);
       return pk;
     } catch (err) {
@@ -46,6 +49,7 @@ export function WalletProvider({ children }) {
 
   async function signAuthMessage(message) {
     const pk = await ensureConnected();
+    const { signMessage } = await loadWalletModule();
     return signMessage(message, pk);
   }
 

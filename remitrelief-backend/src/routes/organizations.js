@@ -8,8 +8,10 @@ import {
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import { Roles } from "../auth/roles.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
+import { createMutationLimiter } from "../middleware/rateLimit.js";
 
 const router = Router();
+router.use(createMutationLimiter("organization", { max: 60 }));
 
 router.get(
   "/mine",

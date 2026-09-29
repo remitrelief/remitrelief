@@ -7,8 +7,10 @@ import {
 import { requireAuth } from "../middleware/auth.js";
 import { toErrorResponse } from "../lib/errors.js";
 import { logger } from "../lib/logger.js";
+import { createMutationLimiter } from "../middleware/rateLimit.js";
 
 const router = Router();
+router.use(createMutationLimiter("donation"));
 
 router.post("/prepare", requireAuth, async (req, res) => {
   try {

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import rateLimit from "express-rate-limit";
+import { createMutationLimiter } from "../middleware/rateLimit.js";
 import {
   campaignDetail,
   campaignStats,
@@ -26,13 +26,7 @@ import { Roles } from "../auth/roles.js";
 
 const router = Router();
 
-const mutationLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 120,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "Too many campaign requests", code: "RATE_LIMITED" },
-});
+const mutationLimiter = createMutationLimiter("campaign");
 
 router.get("/", asyncHandler(discoverCampaigns));
 router.get("/meta/stats", asyncHandler(campaignStats));

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { fetchLedger, fetchStats } from "../lib/api";
-import { shortenAddress } from "../lib/stellar";
+import { shortenAddress } from "../lib/address";
 import { Pagination } from "../components/CampaignUI";
 
 const TYPES = [

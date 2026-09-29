@@ -1,4 +1,4 @@
-# RemitRelief Architecture (Phase 9)
+# RemitRelief Architecture (Phase 10)
 
 ```text
 React Frontend (WalletContext + AuthContext)
@@ -95,6 +95,15 @@ statement and optional evidence URLs; ADMIN approves or rejects from a queue.
 Approval grants the role and sets `VERIFIED`. `assertActorVerified` gates proof
 submission and milestone verification for non-admin actors. This is an
 application status gate only — no identity documents are collected or stored.
+
+## Demo readiness (Phase 10)
+
+The frontend loads the Stellar wallet kit and SDK lazily (`WalletContext`
+dynamic-imports `lib/wallet.js`), so the initial bundle carries only the app
+shell. Admins can suspend or reinstate users by wallet. All state-changing
+routers share `createMutationLimiter` (`src/middleware/rateLimit.js`).
+`test/demo-walkthrough.test.js` exercises the full demo story through the HTTP
+API.
 
 ## Auth
 

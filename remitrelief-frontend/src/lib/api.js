@@ -168,6 +168,13 @@ export function reviewVerification(id, body) {
   return request(`/verification/${id}/review`, { method: "POST", body: JSON.stringify(body) });
 }
 
+export function setUserVerificationStatus(walletAddress, body) {
+  return request(`/verification/users/${encodeURIComponent(walletAddress)}/status`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
 export function submitCampaign(id) {
   return request(`/campaigns/${id}/submit`, { method: "POST", body: JSON.stringify({}) });
 }

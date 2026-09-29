@@ -11,8 +11,10 @@ import { requireOperatorOrInternalKey, requireRole } from "../middleware/auth.js
 import { Roles } from "../auth/roles.js";
 import { toErrorResponse } from "../lib/errors.js";
 import { logger } from "../lib/logger.js";
+import { createMutationLimiter } from "../middleware/rateLimit.js";
 
 const router = Router();
+router.use(createMutationLimiter("milestone"));
 
 router.post("/:id/proof", requireRole(Roles.NGO, Roles.ADMIN), async (req, res) => {
   try {

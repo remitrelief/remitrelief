@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchDonations, fetchCampaigns, fetchStats } from "../lib/api";
-import { shortenAddress } from "../lib/stellar";
+import { shortenAddress } from "../lib/address";
 import { useAuth } from "../context/AuthContext";
 import { useWallet } from "../context/WalletContext";
 import { useToast } from "../context/ToastContext";

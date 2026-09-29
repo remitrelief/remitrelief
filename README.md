@@ -104,6 +104,8 @@ Phase 8 indexer & transparency engine: see `docs/PHASE_8_REPORT.md`.
 
 Phase 9 KYC-lite verification (status gating, not full KYC): see `docs/PHASE_9_REPORT.md`.
 
+Phase 10 demo readiness (bundle split, suspension, walkthrough test, security pass): see `docs/PHASE_10_REPORT.md`.
+
 ## License
 
 MIT

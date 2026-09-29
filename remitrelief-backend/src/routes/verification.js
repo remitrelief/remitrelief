@@ -4,12 +4,15 @@ import {
   submitVerificationRequest,
   listPendingVerifications,
   reviewVerificationRequest,
+  setUserVerificationStatusByAdmin,
 } from "../services/verificationService.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import { Roles } from "../auth/roles.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
+import { createMutationLimiter } from "../middleware/rateLimit.js";
 
 const router = Router();
+router.use(createMutationLimiter("verification", { max: 60 }));
 
 router.get(
   "/me",
@@ -44,6 +47,19 @@ router.post(
   asyncHandler(async (req, res) => {
     const updated = await reviewVerificationRequest(req.params.id, req.body || {}, req.user);
     res.json({ success: true, data: updated });
+  })
+);
+
+router.post(
+  "/users/:walletAddress/status",
+  requireRole(Roles.ADMIN),
+  asyncHandler(async (req, res) => {
+    const user = await setUserVerificationStatusByAdmin(
+      req.params.walletAddress,
+      req.body || {},
+      req.user
+    );
+    res.json({ success: true, data: user });
   })
 );
 

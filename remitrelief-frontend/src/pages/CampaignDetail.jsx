@@ -20,7 +20,7 @@ import {
   fetchLedger,
   fetchMilestoneProofs,
 } from "../lib/api";
-import { shortenAddress } from "../lib/stellar";
+import { shortenAddress } from "../lib/address";
 
 export default function CampaignDetail() {
   const { id } = useParams();

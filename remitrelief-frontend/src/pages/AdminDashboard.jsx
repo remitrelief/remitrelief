@@ -15,9 +15,11 @@ import {
   reviewVerification,
   runAdminIndexer,
   setOrganizationStatus,
+  setUserVerificationStatus,
   transitionCampaign,
 } from "../lib/api";
 import { useToast } from "../context/ToastContext";
+import UserAccessControl from "../components/UserAccessControl";
 
 const NEXT = {
   SUBMITTED: ["UNDER_REVIEW", "CANCELLED"],
@@ -208,6 +210,15 @@ export default function AdminDashboard() {
           </ul>
         )}
       </section>
+
+      <UserAccessControl
+        onSetStatus={(walletAddress, status, statusReason) =>
+          run(
+            () => setUserVerificationStatus(walletAddress, { status, reason: statusReason }),
+            `User set to ${status.toLowerCase()}`
+          )
+        }
+      />
 
       <section className="panel">
         <h2>Pending organizations</h2>
