@@ -10,7 +10,7 @@ const CampaignDetail = lazy(() => import("./pages/CampaignDetail"));
 const CreateCampaign = lazy(() => import("./pages/CreateCampaign"));
 const MyCampaigns = lazy(() => import("./pages/MyCampaigns"));
 const CampaignManagement = lazy(() => import("./pages/CampaignManagement"));
-const DonorDashboard = lazy(() => import("./pages/DonorDashboard"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 const OrganizationWorkspace = lazy(() => import("./pages/OrganizationWorkspace"));
 const VerificationWorkspace = lazy(() => import("./pages/VerificationWorkspace"));
@@ -56,7 +56,7 @@ export default function App() {
                   path="dashboard"
                   element={
                     <ProtectedRoute>
-                      <DonorDashboard />
+                      <Dashboard />
                     </ProtectedRoute>
                   }
                 />

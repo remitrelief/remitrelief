@@ -6,6 +6,7 @@ import {
   buildDepositXdr,
   verifyDonationTransaction,
 } from "../blockchain/soroban/index.js";
+import { NotificationTypes, manageCampaignLink, notifyMany } from "./notificationsService.js";
 
 /**
  * Prepare an on-chain deposit against the campaign's bound escrow only.
@@ -106,7 +107,7 @@ export async function recordVerifiedDonation({
       donor,
       amount: amountNum,
     });
-    return donationsRepo.create({
+    const entry = await donationsRepo.create({
       campaignId,
       donor,
       amount: amountNum,
@@ -116,6 +117,8 @@ export async function recordVerifiedDonation({
       verifiedOnChain: false,
       source: "demo",
     });
+    await notifyDonationReceived(campaign, entry);
+    return entry;
   }
 
   // Bound escrow: always require on-chain verification (ignore client demo flag)
@@ -149,7 +152,7 @@ export async function recordVerifiedDonation({
     amountStroops,
   });
 
-  return donationsRepo.create({
+  const entry = await donationsRepo.create({
     campaignId,
     donor,
     amount: amountNum,
@@ -160,6 +163,21 @@ export async function recordVerifiedDonation({
     source: "on_chain",
     contractAddress: campaign.escrowAddress,
   });
+  await notifyDonationReceived(campaign, entry);
+  return entry;
+}
+
+async function notifyDonationReceived(campaign, entry) {
+  const trust = entry.verifiedOnChain ? "confirmed on-chain" : "demo, not on-chain";
+  await notifyMany(
+    { userIds: [campaign.ownerId] },
+    {
+      type: NotificationTypes.DONATION_RECEIVED,
+      title: `New donation to "${campaign.title || campaign.name}"`,
+      body: `${entry.amount} ${campaign.currency || "USDC"} (${trust})`,
+      link: manageCampaignLink(campaign),
+    }
+  );
 }
 
 export async function listDonations(filters) {

@@ -106,6 +106,8 @@ Phase 9 KYC-lite verification (status gating, not full KYC): see `docs/PHASE_9_R
 
 Phase 10 demo readiness (bundle split, suspension, walkthrough test, security pass): see `docs/PHASE_10_REPORT.md`.
 
+Phase 11 dashboards, in-app notifications, and impact stats: see `docs/PHASE_11_REPORT.md`.
+
 ## License
 
 MIT

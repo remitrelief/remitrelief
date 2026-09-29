@@ -1,4 +1,4 @@
-# RemitRelief Architecture (Phase 10)
+# RemitRelief Architecture (Phase 11)
 
 ```text
 React Frontend (WalletContext + AuthContext)
@@ -104,6 +104,16 @@ shell. Admins can suspend or reinstate users by wallet. All state-changing
 routers share `createMutationLimiter` (`src/middleware/rateLimit.js`).
 `test/demo-walkthrough.test.js` exercises the full demo story through the HTTP
 API.
+
+## Notifications & dashboards (Phase 11)
+
+`notificationsService` writes in-app notifications (Prisma `Notification` /
+JSON `notifications`) from verification, campaign, donation, and milestone
+services. Writes are best-effort so they never fail the triggering action.
+The header `NotificationBell` polls the unread count every 60 s while the tab
+is visible. `dashboardService` composes donor, organizer, and recipient
+summaries from existing repositories (driver-agnostic) for `/dashboard`; the
+public `ImpactStats` strip reuses `/campaigns/meta/stats`.
 
 ## Auth
 

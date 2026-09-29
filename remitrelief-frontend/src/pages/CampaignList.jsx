@@ -10,6 +10,7 @@ import {
   Pagination,
 } from "../components/CampaignUI";
 import { fetchCampaigns } from "../lib/api";
+import ImpactStats from "../components/dashboard/ImpactStats";
 
 export default function CampaignList() {
   const [campaigns, setCampaigns] = useState([]);
@@ -72,6 +73,8 @@ export default function CampaignList() {
         </div>
         <div className="hero-stat-card"><span className="stat-label">Campaigns found</span><strong>{meta.total || 0}</strong></div>
       </section>
+
+      <ImpactStats />
 
       <section id="campaigns" className="section-block">
         <div className="section-heading row-between">

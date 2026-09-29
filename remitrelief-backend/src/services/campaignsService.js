@@ -27,6 +27,7 @@ import {
 } from "../validators/campaignValidator.js";
 import { mediaStorageService } from "./mediaStorageService.js";
 import { assertEscrowReadable } from "./escrowBindingService.js";
+import { NotificationTypes, manageCampaignLink, notifyUser } from "./notificationsService.js";
 
 function enrichFromChain(campaign, onChainBalance, milestones) {
   const enriched = { ...campaign };
@@ -357,6 +358,12 @@ export async function transitionCampaign(
     ...(nextStatus === "ACTIVE" && updated.escrowAddress
       ? { escrowAddress: updated.escrowAddress }
       : {}),
+  });
+  await notifyUser(updated.ownerId, {
+    type: NotificationTypes.CAMPAIGN_STATUS_CHANGED,
+    title: `"${updated.title || updated.name}" is now ${nextStatus.replaceAll("_", " ").toLowerCase()}`,
+    body: nextStatus === "REJECTED" ? updated.rejectionReason : null,
+    link: manageCampaignLink(updated),
   });
   return publicView(updated, actor);
 }

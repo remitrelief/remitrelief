@@ -168,6 +168,28 @@ export function reviewVerification(id, body) {
   return request(`/verification/${id}/review`, { method: "POST", body: JSON.stringify(body) });
 }
 
+export function fetchMyDashboard() {
+  return request("/dashboard/me");
+}
+
+export function fetchNotifications({ unreadOnly = false, limit = 20 } = {}) {
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (unreadOnly) params.set("unread", "true");
+  return request(`/notifications?${params}`);
+}
+
+export function fetchUnreadNotificationCount() {
+  return request("/notifications/unread-count");
+}
+
+export function markNotificationRead(id) {
+  return request(`/notifications/${encodeURIComponent(id)}/read`, { method: "POST" });
+}
+
+export function markAllNotificationsRead() {
+  return request("/notifications/read-all", { method: "POST" });
+}
+
 export function setUserVerificationStatus(walletAddress, body) {
   return request(`/verification/users/${encodeURIComponent(walletAddress)}/status`, {
     method: "POST",

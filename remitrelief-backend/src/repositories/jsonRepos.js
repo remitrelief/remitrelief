@@ -89,6 +89,14 @@ export const verificationRepo = {
   update: async (id, patch) => store.updateVerificationRequest(id, patch),
 };
 
+export const notificationsRepo = {
+  create: async (input) => store.createNotification(input),
+  list: async (filters) => store.listNotifications(filters),
+  countUnread: async (userId) => store.countUnreadNotifications(userId),
+  markRead: async (id, userId) => store.markNotificationRead(id, userId),
+  markAllRead: async (userId) => store.markAllNotificationsRead(userId),
+};
+
 /** SessionRepository — Phase 3 can swap to PostgreSQL without rewriting auth services. */
 export const sessionsRepo = {
   create: async (input) => store.createSession(input),

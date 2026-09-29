@@ -239,6 +239,7 @@ const SEED = {
   sessions: [],
   indexedCursors: {},
   verificationRequests: [],
+  notifications: [],
 };
 
 const GRADIENTS = [
@@ -275,6 +276,7 @@ function loadState() {
     if (!parsed.milestoneProofs) parsed.milestoneProofs = [];
     if (!parsed.auditLogs) parsed.auditLogs = [];
     if (!parsed.verificationRequests) parsed.verificationRequests = [];
+    if (!parsed.notifications) parsed.notifications = [];
     if (DEMO_ESCROW) {
       const oaxaca = parsed.campaigns?.find((c) => c.id === "flood-relief-oaxaca");
       if (oaxaca) oaxaca.escrowAddress = DEMO_ESCROW;
@@ -399,9 +401,11 @@ export function listCampaigns({
   limit = 12,
   publicOnly = false,
   ownerId,
+  recipientId,
 } = {}) {
   let rows = db.campaigns.map(normalizeCampaign);
   if (ownerId) rows = rows.filter((c) => c.ownerId === ownerId);
+  if (recipientId) rows = rows.filter((c) => c.recipientId === recipientId);
   if (publicOnly) {
     rows = rows.filter(
       (c) =>
@@ -1294,6 +1298,67 @@ export function listLedger({ campaignId, type, limit = 50, page = 1, verifiedOnC
   return { items, page: safePage, limit: safeLimit, total, totalPages };
 }
 
+const MAX_NOTIFICATIONS_PER_USER = 200;
+
+export function createNotification({ userId, type, title, body = null, link = null }) {
+  if (!db.notifications) db.notifications = [];
+  const row = {
+    id: uid("ntf"),
+    userId,
+    type,
+    title,
+    body,
+    link,
+    readAt: null,
+    createdAt: new Date().toISOString(),
+  };
+  db.notifications.unshift(row);
+  const mine = db.notifications.filter((item) => item.userId === userId);
+  if (mine.length > MAX_NOTIFICATIONS_PER_USER) {
+    const drop = new Set(mine.slice(MAX_NOTIFICATIONS_PER_USER).map((item) => item.id));
+    db.notifications = db.notifications.filter((item) => !drop.has(item.id));
+  }
+  saveState();
+  return row;
+}
+
+export function listNotifications({ userId, unreadOnly = false, limit = 20 } = {}) {
+  if (!db.notifications) db.notifications = [];
+  return db.notifications
+    .filter((item) => item.userId === userId && (!unreadOnly || !item.readAt))
+    .slice(0, limit);
+}
+
+export function countUnreadNotifications(userId) {
+  if (!db.notifications) db.notifications = [];
+  return db.notifications.filter((item) => item.userId === userId && !item.readAt).length;
+}
+
+export function markNotificationRead(id, userId) {
+  if (!db.notifications) db.notifications = [];
+  const row = db.notifications.find((item) => item.id === id && item.userId === userId);
+  if (!row) return null;
+  if (!row.readAt) {
+    row.readAt = new Date().toISOString();
+    saveState();
+  }
+  return row;
+}
+
+export function markAllNotificationsRead(userId) {
+  if (!db.notifications) db.notifications = [];
+  const now = new Date().toISOString();
+  let updated = 0;
+  for (const row of db.notifications) {
+    if (row.userId === userId && !row.readAt) {
+      row.readAt = now;
+      updated += 1;
+    }
+  }
+  if (updated) saveState();
+  return updated;
+}
+
 export function getStats() {
   const campaigns = db.campaigns.map(normalizeCampaign);
   const donations = db.donations.filter(
@@ -1327,6 +1392,7 @@ export function resetStore() {
   next.sessions = [];
   next.indexedCursors = {};
   next.verificationRequests = [];
+  next.notifications = [];
   Object.assign(db, next);
   db.campaigns[0].escrowAddress = DEMO_ESCROW;
   saveState();

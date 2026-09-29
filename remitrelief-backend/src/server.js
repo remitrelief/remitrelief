@@ -15,6 +15,8 @@ import internalRouter from "./routes/internal.js";
 import organizationsRouter from "./routes/organizations.js";
 import adminRouter from "./routes/admin.js";
 import verificationRouter from "./routes/verification.js";
+import notificationsRouter from "./routes/notifications.js";
+import dashboardRouter from "./routes/dashboard.js";
 import { asyncHandler } from "./middleware/asyncHandler.js";
 import { getStats } from "./services/campaignsService.js";
 
@@ -53,6 +55,8 @@ app.use("/api/internal", internalRouter);
 app.use("/api/organizations", organizationsRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/verification", verificationRouter);
+app.use("/api/notifications", notificationsRouter);
+app.use("/api/dashboard", dashboardRouter);
 
 // Direct-backend compatibility aliases. Browser-facing deployments use /api/*.
 app.use("/auth", authRouter);
@@ -64,6 +68,8 @@ app.use("/internal", internalRouter);
 app.use("/organizations", organizationsRouter);
 app.use("/admin", adminRouter);
 app.use("/verification", verificationRouter);
+app.use("/notifications", notificationsRouter);
+app.use("/dashboard", dashboardRouter);
 
 app.get("/health", (_req, res) =>
   res.json({

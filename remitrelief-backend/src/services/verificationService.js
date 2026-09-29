@@ -1,6 +1,7 @@
 import { AppError, ErrorCodes } from "../lib/errors.js";
 import { Roles, normalizeRoles } from "../auth/roles.js";
 import { auditRepo, usersRepo, verificationRepo } from "../repositories/index.js";
+import { NotificationTypes, notifyUser } from "./notificationsService.js";
 
 const ALLOWED_ROLES = new Set([Roles.NGO, Roles.RECIPIENT]);
 const REVIEW_STATUSES = new Set(["VERIFIED", "REJECTED"]);
@@ -194,6 +195,15 @@ export async function reviewVerificationRequest(id, input, actor) {
     resourceId: existing.id,
     metadata: { status: next, subjectUserId: existing.userId },
   });
+  await notifyUser(existing.userId, {
+    type: NotificationTypes.VERIFICATION_REVIEWED,
+    title:
+      next === "VERIFIED"
+        ? `You are verified as ${existing.requestedRole}`
+        : `Your ${existing.requestedRole} verification request was not approved`,
+    body: reviewNote,
+    link: "/verification",
+  });
   return updated;
 }
 
@@ -234,6 +244,12 @@ export async function setUserVerificationStatusByAdmin(walletAddress, input, act
     resourceType: "User",
     resourceId: user.id,
     metadata: { status, previousStatus: user.verificationStatus || "UNVERIFIED", reason },
+  });
+  await notifyUser(user.id, {
+    type: NotificationTypes.ACCOUNT_STATUS_CHANGED,
+    title: `Your verification status is now ${status}`,
+    body: reason,
+    link: "/verification",
   });
   const updated = await usersRepo.findById(user.id);
   return {

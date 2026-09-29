@@ -183,10 +183,12 @@ export const campaignsRepo = {
     limit = 12,
     publicOnly = false,
     ownerId,
+    recipientId,
   } = {}) {
     const term = search || q;
     const where = {
       ...(ownerId ? { createdByUserId: ownerId } : {}),
+      ...(recipientId ? { recipientId } : {}),
       ...(publicOnly
         ? {
             visibility: "PUBLIC",

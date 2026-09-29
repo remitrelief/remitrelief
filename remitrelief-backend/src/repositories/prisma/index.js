@@ -682,6 +682,7 @@ export const statsRepo = {
       prisma.authChallenge.deleteMany(),
       prisma.session.deleteMany(),
       prisma.auditLog.deleteMany(),
+      prisma.notification.deleteMany(),
       prisma.verificationRequest.deleteMany(),
       prisma.organizationMember.deleteMany(),
       prisma.organization.deleteMany(),
@@ -771,5 +772,57 @@ export const verificationRepo = {
       },
     });
     return mapVerificationRequest(row);
+  },
+};
+
+function mapNotification(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    userId: row.userId,
+    type: row.type,
+    title: row.title,
+    body: row.body,
+    link: row.link,
+    readAt: row.readAt?.toISOString?.() || row.readAt || null,
+    createdAt: row.createdAt?.toISOString?.() || row.createdAt,
+  };
+}
+
+export const notificationsRepo = {
+  async create({ userId, type, title, body = null, link = null }) {
+    const row = await getPrisma().notification.create({
+      data: { userId, type, title, body, link },
+    });
+    return mapNotification(row);
+  },
+  async list({ userId, unreadOnly = false, limit = 20 } = {}) {
+    const rows = await getPrisma().notification.findMany({
+      where: { userId, ...(unreadOnly ? { readAt: null } : {}) },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+    });
+    return rows.map(mapNotification);
+  },
+  async countUnread(userId) {
+    return getPrisma().notification.count({ where: { userId, readAt: null } });
+  },
+  async markRead(id, userId) {
+    const prisma = getPrisma();
+    const existing = await prisma.notification.findFirst({ where: { id, userId } });
+    if (!existing) return null;
+    if (existing.readAt) return mapNotification(existing);
+    const row = await prisma.notification.update({
+      where: { id },
+      data: { readAt: new Date() },
+    });
+    return mapNotification(row);
+  },
+  async markAllRead(userId) {
+    const result = await getPrisma().notification.updateMany({
+      where: { userId, readAt: null },
+      data: { readAt: new Date() },
+    });
+    return result.count;
   },
 };

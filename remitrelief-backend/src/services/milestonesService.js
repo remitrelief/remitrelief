@@ -16,6 +16,49 @@ import {
   verifyMilestoneVerificationTransaction,
 } from "../blockchain/soroban/index.js";
 import { assertActorVerified } from "./verificationService.js";
+import {
+  NotificationTypes,
+  campaignLink,
+  manageCampaignLink,
+  notifyCampaignStakeholders,
+  notifyMany,
+} from "./notificationsService.js";
+
+function milestoneLabel(campaign, index) {
+  const label = campaign?.milestoneLabels?.[index]?.label;
+  return label ? `Milestone ${index + 1} ("${label}")` : `Milestone ${index + 1}`;
+}
+
+function campaignName(campaign) {
+  return campaign.title || campaign.name || campaign.id;
+}
+
+function notifyMilestoneVerified(campaign, index, { onChain, actorId }) {
+  return notifyCampaignStakeholders(
+    campaign,
+    {
+      type: NotificationTypes.MILESTONE_VERIFIED,
+      title: `${milestoneLabel(campaign, index)} verified on "${campaignName(campaign)}"`,
+      body: onChain ? "Verified on-chain." : "Verified in demo mode (not on-chain).",
+      link: manageCampaignLink(campaign),
+    },
+    { exclude: [actorId] }
+  );
+}
+
+function notifyMilestoneReleased(campaign, index, { onChain, amount }) {
+  const amountText = amount != null ? `${amount} ${campaign.currency || "USDC"} ` : "Funds ";
+  return notifyCampaignStakeholders(
+    campaign,
+    {
+      type: NotificationTypes.MILESTONE_RELEASED,
+      title: `${milestoneLabel(campaign, index)} funds released on "${campaignName(campaign)}"`,
+      body: `${amountText}released to the recipient${onChain ? " on-chain" : " (demo, not on-chain)"}.`,
+      link: campaignLink(campaign),
+    },
+    { includeDonors: true }
+  );
+}
 
 function optionalHttpUrl(value, field) {
   if (!value) return null;
@@ -135,6 +178,15 @@ export async function submitProof({
     resourceId: `${campaign.id}:${index}`,
     metadata: { proofId: proof.id, evidenceCount: urls.length },
   });
+  await notifyMany(
+    { userIds: [campaign.ownerId], exclude: [actor?.id] },
+    {
+      type: NotificationTypes.PROOF_SUBMITTED,
+      title: `Proof submitted for ${milestoneLabel(campaign, index)} on "${campaignName(campaign)}"`,
+      body: cleanedNote.slice(0, 200),
+      link: manageCampaignLink(campaign),
+    }
+  );
 
   return proof;
 }
@@ -256,6 +308,7 @@ export async function verifyMilestone({
       resourceId: `${cid}:${index}`,
       metadata: { demo: true, proofId: proof.id },
     });
+    await notifyMilestoneVerified(campaign, index, { onChain: false, actorId: actor?.id });
 
     let releaseEvent = null;
     if (autoRelease) {
@@ -311,6 +364,7 @@ export async function verifyMilestone({
     resourceId: `${cid}:${index}`,
     metadata: { txHash: result.hash, proofId: proof.id },
   });
+  await notifyMilestoneVerified(campaign, index, { onChain: true, actorId: actor?.id });
 
   let releaseResult = null;
   if (autoRelease) {
@@ -375,17 +429,19 @@ export async function releaseMilestone({
       "Milestone funds were already released"
     );
   }
-  if (!wantsDemo) {
-    const verified =
-      relational?.verified ||
-      Number((await campaignsRepo.getById(campaign.id)).milestonesVerified) > index;
-    if (!verified) {
-      throw new AppError(
-        ErrorCodes.MILESTONE_NOT_VERIFIED,
-        "Milestone must be verified before release"
-      );
-    }
+  const verified =
+    relational?.verified ||
+    Number((await campaignsRepo.getById(campaign.id)).milestonesVerified) > index;
+  if (!verified) {
+    throw new AppError(
+      ErrorCodes.MILESTONE_NOT_VERIFIED,
+      "Milestone must be verified before release"
+    );
   }
+
+  const fallbackAmount = campaign?.milestoneLabels?.[index]?.amount;
+  const releaseAmount =
+    amount != null ? Number(amount) : fallbackAmount != null ? Number(fallbackAmount) : undefined;
 
   if (wantsDemo) {
     assertDemoModeAllowed();
@@ -394,7 +450,7 @@ export async function releaseMilestone({
       type: "release",
       campaignId: cid,
       milestoneIndex: index,
-      amount: amount != null ? Number(amount) : undefined,
+      amount: releaseAmount,
       actor: "system",
       note: `Milestone ${index} released (demo)`,
       verifiedOnChain: false,
@@ -407,6 +463,7 @@ export async function releaseMilestone({
       resourceId: `${cid}:${index}`,
       metadata: { demo: true },
     });
+    await notifyMilestoneReleased(campaign, index, { onChain: false, amount: releaseAmount });
     return { milestoneId: id, released: true, demo: true, event };
   }
 
@@ -430,7 +487,7 @@ export async function releaseMilestone({
     type: "release",
     campaignId: cid,
     milestoneIndex: index,
-    amount: amount != null ? Number(amount) : undefined,
+    amount: releaseAmount,
     actor: "system",
     txHash: result.hash,
     note: `Milestone ${index} released on-chain`,
@@ -445,6 +502,7 @@ export async function releaseMilestone({
     resourceId: `${cid}:${index}`,
     metadata: { txHash: result.hash },
   });
+  await notifyMilestoneReleased(campaign, index, { onChain: true, amount: releaseAmount });
 
   return { milestoneId: id, released: true, txHash: result.hash, event };
 }

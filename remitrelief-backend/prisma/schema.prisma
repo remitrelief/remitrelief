@@ -142,6 +142,7 @@ model User {
   campaignUpdates CampaignUpdate[]
   donations     Donation[]
   verificationRequests VerificationRequest[]
+  notifications Notification[]
 
   @@index([role])
   @@index([status])
@@ -183,6 +184,23 @@ model VerificationRequest {
   @@index([status])
   @@index([userId])
   @@map("verification_requests")
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  type      String
+  title     String
+  body      String?
+  link      String?
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+  @@map("notifications")
 }
 
 model Session {

@@ -2,6 +2,7 @@ import { NavLink, Outlet } from "react-router-dom";
 import { useWallet } from "../context/WalletContext";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
+import NotificationBell from "./NotificationBell";
 
 function authStatusLabel({ isConnected, authenticated, authenticating, authFailed }) {
   if (authenticating) return "Signing in…";
@@ -103,6 +104,7 @@ export default function Layout() {
                   {authenticating ? "Signing in…" : "Sign in"}
                 </button>
               )}
+              {authenticated && <NotificationBell />}
               {authenticated && (
                 <button type="button" className="secondary compact" onClick={handleLogout}>
                   Sign out

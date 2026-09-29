@@ -130,6 +130,9 @@ Related error codes: `ESCROW_REQUIRED`, `ESCROW_INVALID`, `ESCROW_NOT_BOUND`,
 Related codes: `PROOF_REQUIRED`, `PROOF_INVALID`, `MILESTONE_ALREADY_VERIFIED`,
 `MILESTONE_NOT_VERIFIED`, `MILESTONE_ALREADY_RELEASED`.
 
+Release requires a verified milestone in both demo and on-chain modes. When no
+`amount` is sent, the ledger release amount defaults to the milestone target.
+
 ## Organizations (status only — not KYC)
 
 - `GET /api/organizations/mine` — authenticated memberships
@@ -166,6 +169,31 @@ NGO/RECIPIENT actors must be `VERIFIED` to submit proof, prepare verify, or
 verify milestones (`VERIFICATION_REQUIRED`, 403). ADMIN bypasses the gate.
 Wallets in `NGO_PUBLIC_KEYS` / `RECIPIENT_PUBLIC_KEYS` / `ADMIN_PUBLIC_KEYS`
 are seeded as `VERIFIED`. No documents are stored — URLs only.
+
+## Notifications (Phase 11)
+
+All require authentication and only ever touch the caller's own rows.
+
+- `GET /api/notifications?unread=true&limit=20` — `{ items, unreadCount }` (limit ≤50)
+- `GET /api/notifications/unread-count` — `{ unreadCount }`
+- `POST /api/notifications/:id/read` — 404 if the id belongs to someone else
+- `POST /api/notifications/read-all` — `{ updated }`
+
+Triggers: verification reviewed, admin status change, campaign status change
+(owner), donation received (owner), proof submitted (owner, unless they
+submitted it), milestone verified (owner + recipient, excluding the verifier),
+milestone released (owner + recipient + every donor). Delivery is best-effort;
+a failed notification never fails the underlying action. The JSON store keeps
+the latest 200 per user.
+
+## Dashboard (Phase 11)
+
+- `GET /api/dashboard/me` — `{ roles, verificationStatus, unreadNotifications,
+  donor, organizer, recipient }`. `donor` covers total given (with on-chain
+  subset), supported campaigns and released funds on them; `organizer` covers
+  owned campaigns by status, totals, and `needsAttention` next actions;
+  `recipient` covers campaigns naming the caller as recipient (excluding their
+  own). `organizer`/`recipient` are `null` when not applicable.
 
 ## Admin transparency
 
