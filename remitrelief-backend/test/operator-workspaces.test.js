@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { Keypair } from "@stellar/stellar-sdk";
+import { signChallengeMessage } from "./helpers/signing.js";
 
 describe("Phase 7 operator workspaces & transparency", () => {
   let baseUrl;
@@ -28,9 +29,7 @@ describe("Phase 7 operator workspaces & transparency", () => {
       method: "POST",
       body: { publicKey: keypair.publicKey() },
     });
-    const signature = keypair
-      .sign(Buffer.from(challengeResponse.payload.message, "utf8"))
-      .toString("base64");
+    const signature = signChallengeMessage(keypair, challengeResponse.payload.message);
     const verified = await api("/api/auth/verify", {
       method: "POST",
       body: {

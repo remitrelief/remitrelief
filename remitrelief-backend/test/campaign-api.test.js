@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { Keypair } from "@stellar/stellar-sdk";
+import { signChallengeMessage } from "./helpers/signing.js";
 
 describe("Phase 4 campaign API", () => {
   let baseUrl;
@@ -30,9 +31,7 @@ describe("Phase 4 campaign API", () => {
       body: { publicKey: keypair.publicKey() },
     });
     const challenge = challengeResponse.payload;
-    const signature = keypair
-      .sign(Buffer.from(challenge.message, "utf8"))
-      .toString("base64");
+    const signature = signChallengeMessage(keypair, challenge.message);
     const verified = await api("/api/auth/verify", {
       method: "POST",
       body: { publicKey: keypair.publicKey(), nonce: challenge.nonce, signature },

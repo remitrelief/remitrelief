@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { after, before, describe, it } from "node:test";
 import { Keypair } from "@stellar/stellar-sdk";
+import { signChallengeMessage } from "./helpers/signing.js";
 
 const databaseTestsEnabled =
   process.env.STORE_DRIVER === "prisma" && Boolean(process.env.DATABASE_URL);
@@ -48,9 +49,7 @@ describe("PostgreSQL/Prisma persistence", { skip: !databaseTestsEnabled }, () =>
     cleanupWallets.add(keypair.publicKey());
 
     const challenge = await createChallenge({ publicKey: keypair.publicKey() });
-    const signature = keypair
-      .sign(Buffer.from(challenge.message, "utf8"))
-      .toString("base64");
+    const signature = signChallengeMessage(keypair, challenge.message);
     const result = await completeLogin({
       publicKey: keypair.publicKey(),
       nonce: challenge.nonce,

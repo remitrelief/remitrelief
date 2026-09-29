@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { Keypair } from "@stellar/stellar-sdk";
+import { signChallengeMessage } from "./helpers/signing.js";
 
 /**
  * Phase 10 end-to-end TESTNET demo walkthrough (DEMO_MODE, no escrow, no chain calls):
@@ -36,9 +37,7 @@ describe("Phase 10 demo walkthrough", () => {
       method: "POST",
       body: { publicKey: keypair.publicKey() },
     });
-    const signature = keypair
-      .sign(Buffer.from(challenge.payload.message, "utf8"))
-      .toString("base64");
+    const signature = signChallengeMessage(keypair, challenge.payload.message);
     const verified = await api("/api/auth/verify", {
       method: "POST",
       body: { publicKey: keypair.publicKey(), nonce: challenge.payload.nonce, signature },

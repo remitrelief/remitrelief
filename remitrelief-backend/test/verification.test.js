@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { Keypair } from "@stellar/stellar-sdk";
+import { signChallengeMessage } from "./helpers/signing.js";
 
 describe("Phase 9 KYC-lite verification", () => {
   let baseUrl;
@@ -27,9 +28,7 @@ describe("Phase 9 KYC-lite verification", () => {
       method: "POST",
       body: { publicKey: keypair.publicKey() },
     });
-    const signature = keypair
-      .sign(Buffer.from(challenge.payload.message, "utf8"))
-      .toString("base64");
+    const signature = signChallengeMessage(keypair, challenge.payload.message);
     const verified = await api("/api/auth/verify", {
       method: "POST",
       body: { publicKey: keypair.publicKey(), nonce: challenge.payload.nonce, signature },

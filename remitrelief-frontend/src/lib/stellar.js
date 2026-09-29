@@ -32,7 +32,9 @@ export async function submitSignedSorobanTx(signedXDR) {
   const tx = TransactionBuilder.fromXDR(signedXDR, NETWORK_PASSPHRASE);
   const sendResult = await sorobanServer.sendTransaction(tx);
   if (sendResult.status === "ERROR") {
-    throw new Error(`Submission failed: ${JSON.stringify(sendResult.errorResult)}`);
+    // XDR results may contain BigInt values, which JSON.stringify cannot serialize.
+    const detail = sendResult.errorResult?.toXDR?.("base64") ?? "unknown error";
+    throw new Error(`Submission failed: ${detail}`);
   }
   return pollTransaction(sendResult.hash);
 }

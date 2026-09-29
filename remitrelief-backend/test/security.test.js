@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it, before, after } from "node:test";
 import { Keypair } from "@stellar/stellar-sdk";
+import { signChallengeMessage } from "./helpers/signing.js";
 
 describe("config + demo mode gating", () => {
   const original = { ...process.env };
@@ -79,7 +80,7 @@ describe("wallet auth challenge + sessions", () => {
     assert.match(challenge.message, /TESTNET/);
     assert.ok(challenge.issuedAt);
     assert.ok(challenge.expiresAt);
-    const signature = kp.sign(Buffer.from(challenge.message, "utf8")).toString("base64");
+    const signature = signChallengeMessage(kp, challenge.message);
     const result = await completeLogin({
       publicKey: kp.publicKey(),
       nonce: challenge.nonce,
@@ -98,7 +99,7 @@ describe("wallet auth challenge + sessions", () => {
     const kp = Keypair.random();
     const other = Keypair.random();
     const challenge = await createChallenge({ publicKey: kp.publicKey() });
-    const signature = other.sign(Buffer.from(challenge.message, "utf8")).toString("base64");
+    const signature = signChallengeMessage(other, challenge.message);
     await assert.rejects(
       () =>
         completeLogin({
@@ -116,7 +117,7 @@ describe("wallet auth challenge + sessions", () => {
     const { createChallenge, completeLogin } = await import("../src/services/authService.js");
     const kp = Keypair.random();
     const challenge = await createChallenge({ publicKey: kp.publicKey() });
-    const signature = kp.sign(Buffer.from(challenge.message, "utf8")).toString("base64");
+    const signature = signChallengeMessage(kp, challenge.message);
     await completeLogin({
       publicKey: kp.publicKey(),
       nonce: challenge.nonce,
@@ -151,7 +152,7 @@ describe("wallet auth challenge + sessions", () => {
     const { Keypair } = await import("@stellar/stellar-sdk");
     const kp = Keypair.random();
     const challenge = await createChallenge({ publicKey: kp.publicKey() });
-    const signature = kp.sign(Buffer.from(challenge.message, "utf8")).toString("base64");
+    const signature = signChallengeMessage(kp, challenge.message);
     const { sessionId, user } = await completeLogin({
       publicKey: kp.publicKey(),
       nonce: challenge.nonce,
@@ -185,7 +186,7 @@ describe("authorization roles", () => {
     resetConfigCache();
 
     const challenge = await createChallenge({ publicKey: kp.publicKey() });
-    const signature = kp.sign(Buffer.from(challenge.message, "utf8")).toString("base64");
+    const signature = signChallengeMessage(kp, challenge.message);
     const { sessionId } = await completeLogin({
       publicKey: kp.publicKey(),
       nonce: challenge.nonce,

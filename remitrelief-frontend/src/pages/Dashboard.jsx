@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { fetchDonations, fetchMyDashboard } from "../lib/api";
 import { ErrorState, LoadingState } from "../components/CampaignUI";
 import ImpactStats from "../components/dashboard/ImpactStats";

@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import CampaignForm from "../components/CampaignForm";
 import { createCampaign, submitCampaign } from "../lib/api";
 import { useToast } from "../context/ToastContext";

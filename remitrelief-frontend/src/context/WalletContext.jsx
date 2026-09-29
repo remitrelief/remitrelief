@@ -40,6 +40,9 @@ export function WalletProvider({ children }) {
   function disconnect() {
     setAddress("");
     setError(null);
+    loadWalletModule()
+      .then(({ disconnectWallet }) => disconnectWallet())
+      .catch(() => {});
   }
 
   async function ensureConnected() {
@@ -48,9 +51,10 @@ export function WalletProvider({ children }) {
   }
 
   async function signAuthMessage(message) {
-    const pk = await ensureConnected();
-    const { signMessage } = await loadWalletModule();
-    return signMessage(message, pk);
+    const wallet = await loadWalletModule();
+    // A stored address without a selected wallet (e.g. after reload) cannot sign; reconnect.
+    const pk = address && wallet.isWalletSelected() ? address : await connect();
+    return wallet.signMessage(message, pk);
   }
 
   return (

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router";
 import { fetchLedger, fetchStats } from "../lib/api";
 import { shortenAddress } from "../lib/address";
 import { Pagination } from "../components/CampaignUI";

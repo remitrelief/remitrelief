@@ -1,4 +1,4 @@
-# RemitRelief Architecture (Phase 11)
+# RemitRelief Architecture (Phase 12)
 
 ```text
 React Frontend (WalletContext + AuthContext)
@@ -114,6 +114,16 @@ The header `NotificationBell` polls the unread count every 60 s while the tab
 is visible. `dashboardService` composes donor, organizer, and recipient
 summaries from existing repositories (driver-agnostic) for `/dashboard`; the
 public `ImpactStats` strip reuses `/campaigns/meta/stats`.
+
+## Stellar SDK 17 & wallet kit 2 (Phase 12)
+
+Stellar SDK 17 represents XDR as plain objects. Soroban parsing in
+`src/blockchain/soroban/` reads fields through `xdrField` (accepts either the
+accessor or the property shape) and decodes event topics/values with
+`scValToNative`; contract function names and the donor/verifier address must
+match exactly. On the frontend, `lib/wallet.js` wraps the static
+`StellarWalletsKit` API, imports only the Freighter and Albedo modules, and
+persists the selected wallet id across reloads.
 
 ## Auth
 

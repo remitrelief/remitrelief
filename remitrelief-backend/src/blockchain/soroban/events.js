@@ -1,3 +1,4 @@
+import { scValToNative } from "@stellar/stellar-sdk";
 import { getSorobanServer } from "./client.js";
 import { logger } from "../../lib/logger.js";
 
@@ -79,23 +80,30 @@ export async function fetchEscrowEventsPages({
   return { events, latestLedger, cursor: nextCursor, pages };
 }
 
+/** Decode an ScVal (either XDR representation) to a JS value; pass plain values through. */
+function toNative(value) {
+  if (value == null || typeof value !== "object" || Array.isArray(value)) return value;
+  try {
+    return scValToNative(value);
+  } catch {
+    return value;
+  }
+}
+
 export function topicToString(topic) {
   try {
-    if (topic == null) return "";
-    if (typeof topic === "string") return topic;
-    if (typeof topic.sym === "function") return topic.sym().toString();
-    if (typeof topic.toString === "function") {
-      const s = topic.toString();
-      if (s && s !== "[object Object]") return s;
-    }
-    if (topic._value != null) return String(topic._value);
-    return String(topic);
+    const native = toNative(topic);
+    if (native == null) return "";
+    if (["string", "number", "bigint"].includes(typeof native)) return String(native);
+    const text = native.toString();
+    return text && text !== "[object Object]" ? text : "";
   } catch {
     return "";
   }
 }
 
-function extractNumber(value) {
+function extractNumber(input) {
+  const value = toNative(input);
   if (value == null) return null;
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "bigint") return Number(value);
@@ -109,7 +117,6 @@ function extractNumber(value) {
     }
   }
   if (typeof value === "object") {
-    if (value._value != null) return extractNumber(value._value);
     if (typeof value.toString === "function") {
       const asText = value.toString();
       if (asText && asText !== "[object Object]" && Number.isFinite(Number(asText))) {
@@ -157,7 +164,7 @@ export function normalizeEvent(ev) {
     txHash: ev.txHash || ev.transactionHash || null,
     topics,
     ledger: ev.ledger || ev.ledgerCloseTime || null,
-    contractId: ev.contractId || null,
+    contractId: ev.contractId ? String(ev.contractId) : null,
     amount: amount != null ? amount : null,
     milestoneIndex,
     raw: ev,

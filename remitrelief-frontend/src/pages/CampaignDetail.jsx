@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router";
 import DonateModal from "../components/DonateModal";
 import EscrowStatus from "../components/EscrowStatus";
 import MilestoneTimeline from "../components/MilestoneTimeline";

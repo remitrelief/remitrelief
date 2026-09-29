@@ -80,6 +80,8 @@ Serverless note: Prisma client is a process singleton (`src/database/prisma.js`)
 
 ## Quick start (JSON offline / tests)
 
+Requires Node.js 22.12+ (Stellar SDK 17 and Vite 8).
+
 ```bash
 cd remitrelief-backend
 # STORE_DRIVER=json (default when DATABASE_URL unset)
@@ -92,7 +94,7 @@ cd ../remitrelief-frontend && npm install && npm run dev
 
 ```bash
 cd remitrelief-backend && npm test && npm run prisma:validate
-cd ../remitrelief-frontend && npm run build
+cd ../remitrelief-frontend && npm test && npm run build
 ```
 
 ## Status
@@ -107,6 +109,8 @@ Phase 9 KYC-lite verification (status gating, not full KYC): see `docs/PHASE_9_R
 Phase 10 demo readiness (bundle split, suspension, walkthrough test, security pass): see `docs/PHASE_10_REPORT.md`.
 
 Phase 11 dashboards, in-app notifications, and impact stats: see `docs/PHASE_11_REPORT.md`.
+
+Phase 12 dependency security upgrades (Stellar SDK 17, wallet kit 2, React Router 7, Vite 8): see `docs/PHASE_12_REPORT.md`.
 
 ## License
 

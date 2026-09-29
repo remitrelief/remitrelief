@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { Money } from "../CampaignUI";
 import { shortenAddress } from "../../lib/address";
 

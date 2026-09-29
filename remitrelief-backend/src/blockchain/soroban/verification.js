@@ -2,52 +2,43 @@
  * Extract invoke-host-function contract calls from a Transaction.
  * Returns [{ contractId, functionName, args[] }]
  */
-import { xdr, StrKey, Address, scValToNative } from "@stellar/stellar-sdk";
+import { Address, scValToNative } from "@stellar/stellar-sdk";
 import { AppError, ErrorCodes } from "../../lib/errors.js";
 import { logger } from "../../lib/logger.js";
 import { getTransaction } from "./client.js";
 import { parseSignedTransaction } from "./transactions.js";
 import { loadConfig } from "../../config.js";
 
-function contractIdFromScAddress(scAddress) {
+/**
+ * Read an XDR field regardless of representation: stellar-base <= 14 exposes
+ * accessor methods (which throw on the wrong union arm), >= 15 plain properties.
+ */
+function xdrField(node, name) {
+  if (node == null) return undefined;
   try {
-    return Address.fromScAddress(scAddress).toString();
+    const value = node[name];
+    return typeof value === "function" ? value.call(node) : value;
   } catch {
-    try {
-      return StrKey.encodeContract(scAddress.contractId());
-    } catch {
-      return null;
-    }
+    return undefined;
   }
 }
 
-function functionNameFromSymbol(sym) {
-  if (sym == null) return "";
-  if (typeof sym === "string") return sym;
+function contractIdFromScAddress(scAddress) {
+  if (!scAddress) return null;
   try {
-    return sym.toString();
+    return Address.fromScAddress(scAddress).toString();
   } catch {
-    return String(sym);
+    return null;
   }
 }
 
 function parseInvokeContract(invoke) {
   if (!invoke) return null;
-  const rawContract =
-    typeof invoke.contractAddress === "function"
-      ? invoke.contractAddress()
-      : invoke._attributes?.contractAddress;
-  const rawFn =
-    typeof invoke.functionName === "function"
-      ? invoke.functionName()
-      : invoke._attributes?.functionName;
-  const rawArgs =
-    typeof invoke.args === "function" ? invoke.args() : invoke._attributes?.args || [];
-
+  const rawFn = xdrField(invoke, "functionName");
   return {
-    contractId: contractIdFromScAddress(rawContract),
-    functionName: functionNameFromSymbol(rawFn),
-    args: rawArgs,
+    contractId: contractIdFromScAddress(xdrField(invoke, "contractAddress")),
+    functionName: rawFn == null ? "" : String(rawFn),
+    args: xdrField(invoke, "args") || [],
   };
 }
 
@@ -60,24 +51,7 @@ export function extractContractInvocations(tx) {
     if (!func) continue;
 
     try {
-      let invoke = null;
-      if (typeof func.invokeContract === "function") {
-        try {
-          invoke = func.invokeContract();
-        } catch {
-          invoke = null;
-        }
-      }
-      if (!invoke && typeof func.switch === "function") {
-        const kind = func.switch();
-        if (kind === xdr.HostFunctionType.hostFnTypeInvokeContract() || kind?.name === "hostFnTypeInvokeContract") {
-          invoke = typeof func.value === "function" ? func.value() : func._value;
-        }
-      }
-      if (!invoke && func._arm === "invokeContract") {
-        invoke = func._value;
-      }
-
+      const invoke = xdrField(func, "invokeContract");
       const parsed = parseInvokeContract(invoke);
       if (parsed?.contractId && parsed.functionName) {
         invocations.push(parsed);
@@ -94,14 +68,8 @@ function scArgToNativeSafe(scVal) {
   try {
     return scValToNative(scVal);
   } catch {
-    try {
-      if (scVal.address) {
-        return Address.fromScAddress(scVal.address()).toString();
-      }
-    } catch {
-      /* ignore */
-    }
-    return null;
+    const scAddress = xdrField(scVal, "address");
+    return scAddress ? contractIdFromScAddress(scAddress) : null;
   }
 }
 
@@ -115,9 +83,7 @@ export function assertExpectedInvocation(tx, { escrowAddress, functionName, expe
   }
 
   const match = invocations.find(
-    (inv) =>
-      inv.contractId === escrowAddress &&
-      (inv.functionName === functionName || inv.functionName?.includes?.(functionName))
+    (inv) => inv.contractId === escrowAddress && inv.functionName === functionName
   );
 
   if (!match) {
@@ -136,7 +102,7 @@ export function assertExpectedInvocation(tx, { escrowAddress, functionName, expe
 
   if (expectedArgs.address != null) {
     const first = natives[0];
-    if (first && first !== expectedArgs.address) {
+    if (first !== expectedArgs.address) {
       throw new AppError(ErrorCodes.INVALID_CONTRACT_CALL, "Invocation address argument mismatch", {
         details: { expected: expectedArgs.address, got: first },
       });

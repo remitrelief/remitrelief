@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import CampaignCard from "../components/CampaignCard";
 import { EmptyState, ErrorState, LoadingState, Pagination } from "../components/CampaignUI";
 import { fetchMyCampaigns } from "../lib/api";
