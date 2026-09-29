@@ -97,6 +97,8 @@ cd remitrelief-backend && npm test && npm run prisma:validate
 cd ../remitrelief-frontend && npm test && npm run build
 ```
 
+Live wallet check on TESTNET (Freighter/xBull, full demo story): `docs/TESTNET_SMOKE_TEST.md`.
+
 ## Status
 
 Testnet only. Not audited. Do not use with real funds.

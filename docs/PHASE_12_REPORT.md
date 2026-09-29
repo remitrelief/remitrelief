@@ -13,7 +13,7 @@ deployment.
 The 19 remaining frontend findings are all transitive through the wallet kit's
 HOT wallet module (`@hot-wallet/sdk` → NEAR / Solana libraries: `elliptic`,
 `secp256k1`, `jayson`, `uuid`, `stream-json`). The app imports only the
-Freighter and Albedo modules, and a scan of `dist/` confirms none of that code
+Freighter and xBull modules, and a scan of `dist/` confirms none of that code
 is bundled. npm's only offered fix is downgrading the kit to 1.5, which
 reintroduces older issues, so these are accepted until the kit updates them.
 
@@ -52,7 +52,7 @@ Vite 8).
   `test/helpers/signing.js`.
 - **Wallet kit 2** is a static API (`StellarWalletsKit.init/authModal/...`)
   with per-wallet module imports. `lib/wallet.js` was rewritten:
-  - Imports only Freighter + Albedo, which roughly halves the lazy wallet
+  - Imports only Freighter + xBull (see addendum), which roughly halves the lazy wallet
     chunks (1,374 kB → ~783 kB; 384 kB → ~181 kB gzip).
   - Persists the chosen wallet id (the kit does not restore it on reload) and
     only restores supported ids.
@@ -91,9 +91,23 @@ Vite 8).
 
 ## 6. Not verified here
 
-- A live Freighter/Albedo signature and a real TESTNET submission. The adapters
-  are unit-tested against the kit's typed API, but a manual smoke test (connect,
-  sign in, demo donation, NGO verify) is recommended before the next demo.
+- A live wallet signature and a real TESTNET submission. The adapters are
+  unit-tested against the kit's typed API; run `docs/TESTNET_SMOKE_TEST.md`
+  before the next demo.
+
+### Addendum — live-check preparation
+
+Preparing the smoke test surfaced two sign-in blockers, both fixed:
+
+- **Albedo cannot sign messages** (the kit throws `Albedo does not support the
+  "signMessage" function`), so Albedo users could never sign in. The picker now
+  offers Freighter and **xBull**; a stored `albedo` choice is ignored.
+- **SEP-53 message signatures were rejected.** Newer wallet releases (including
+  Freighter) sign `sha256("Stellar Signed Message:\n" + message)` rather than
+  the raw message, which the raw ed25519 check would reject.
+  `verifyChallengeSignature` now accepts raw or SEP-53 signatures via
+  `Keypair.verifyMessage`; a test covers acceptance plus wrong-key and
+  wrong-message rejection.
 
 ## 7. Deferred
 

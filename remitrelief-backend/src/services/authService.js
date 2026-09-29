@@ -85,14 +85,27 @@ function decodeSignature(signature) {
   }
 }
 
+/**
+ * Wallets sign the challenge either as raw UTF-8 bytes or per SEP-53
+ * (sha256 of "Stellar Signed Message:\n" + message, e.g. newer Freighter releases).
+ * Both prove the key signed this exact challenge.
+ */
+function signatureMatches(keypair, message, signature) {
+  if (keypair.verify(Buffer.from(message, "utf8"), signature)) return true;
+  try {
+    return keypair.verifyMessage(message, signature);
+  } catch {
+    return false;
+  }
+}
+
 export function verifyChallengeSignature({ publicKey, message, signature }) {
   const sigBuf = decodeSignature(signature);
   if (!sigBuf) {
     throw new AppError(ErrorCodes.INVALID_SIGNATURE, "Invalid signature encoding");
   }
   const kp = Keypair.fromPublicKey(publicKey);
-  const ok = kp.verify(Buffer.from(message, "utf8"), sigBuf);
-  if (!ok) {
+  if (!signatureMatches(kp, message, sigBuf)) {
     throw new AppError(ErrorCodes.INVALID_SIGNATURE, "Signature verification failed");
   }
   return true;

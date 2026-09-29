@@ -111,6 +111,36 @@ describe("wallet auth challenge + sessions", () => {
     );
   });
 
+  it("accepts SEP-53 message signatures and rejects mismatched ones", async () => {
+    const { resetConfigCache } = await import("../src/config.js");
+    resetConfigCache();
+    const { createChallenge, completeLogin } = await import("../src/services/authService.js");
+    const kp = Keypair.random();
+
+    const challenge = await createChallenge({ publicKey: kp.publicKey() });
+    const sep53Signature = Buffer.from(kp.signMessage(challenge.message)).toString("base64");
+    const result = await completeLogin({
+      publicKey: kp.publicKey(),
+      nonce: challenge.nonce,
+      signature: sep53Signature,
+    });
+    assert.ok(result.sessionId);
+
+    // A failed attempt consumes the challenge, so each case gets a fresh one.
+    const signers = [
+      (message) => Keypair.random().signMessage(message),
+      (message) => kp.signMessage(`${message}x`),
+    ];
+    for (const sign of signers) {
+      const fresh = await createChallenge({ publicKey: kp.publicKey() });
+      const signature = Buffer.from(sign(fresh.message)).toString("base64");
+      await assert.rejects(
+        () => completeLogin({ publicKey: kp.publicKey(), nonce: fresh.nonce, signature }),
+        (err) => err.code === "INVALID_SIGNATURE"
+      );
+    }
+  });
+
   it("rejects reused challenges", async () => {
     const { resetConfigCache } = await import("../src/config.js");
     resetConfigCache();

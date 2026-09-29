@@ -28,10 +28,10 @@ vi.mock("@creit.tech/stellar-wallets-kit/modules/freighter", () => ({
     productId = "freighter";
   },
 }));
-vi.mock("@creit.tech/stellar-wallets-kit/modules/albedo", () => ({
-  ALBEDO_ID: "albedo",
-  AlbedoModule: class {
-    productId = "albedo";
+vi.mock("@creit.tech/stellar-wallets-kit/modules/xbull", () => ({
+  XBULL_ID: "xbull",
+  xBullModule: class {
+    productId = "xbull";
   },
 }));
 vi.mock("./stellar.js", () => ({ NETWORK_PASSPHRASE: "Test SDF Network ; September 2015" }));
@@ -61,22 +61,25 @@ describe("wallet (stellar-wallets-kit v2 adapter)", () => {
       expect.objectContaining({ network: PASSPHRASE, selectedWalletId: "freighter" })
     );
 
-    localStorage.setItem("remitrelief_wallet_id", "some-unknown-wallet");
-    await loadWallet();
-    expect(kit.init).toHaveBeenLastCalledWith(
-      expect.objectContaining({ selectedWalletId: undefined })
-    );
+    // Albedo cannot sign messages (sign-in), so a previously stored choice is dropped.
+    for (const unsupported of ["albedo", "some-unknown-wallet"]) {
+      localStorage.setItem("remitrelief_wallet_id", unsupported);
+      await loadWallet();
+      expect(kit.init).toHaveBeenLastCalledWith(
+        expect.objectContaining({ selectedWalletId: undefined })
+      );
+    }
   });
 
   it("connects through the auth modal and remembers the chosen wallet", async () => {
     const wallet = await loadWallet();
     kit.authModal.mockImplementation(async () => {
-      kit.selected = { productId: "albedo" };
+      kit.selected = { productId: "xbull" };
       return { address: ADDRESS };
     });
 
     await expect(wallet.connectWallet()).resolves.toBe(ADDRESS);
-    expect(localStorage.getItem("remitrelief_wallet_id")).toBe("albedo");
+    expect(localStorage.getItem("remitrelief_wallet_id")).toBe("xbull");
     expect(wallet.isWalletSelected()).toBe(true);
   });
 

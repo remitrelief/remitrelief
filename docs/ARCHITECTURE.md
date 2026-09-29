@@ -122,8 +122,10 @@ Stellar SDK 17 represents XDR as plain objects. Soroban parsing in
 accessor or the property shape) and decodes event topics/values with
 `scValToNative`; contract function names and the donor/verifier address must
 match exactly. On the frontend, `lib/wallet.js` wraps the static
-`StellarWalletsKit` API, imports only the Freighter and Albedo modules, and
-persists the selected wallet id across reloads.
+`StellarWalletsKit` API, imports only the Freighter and xBull modules (sign-in
+needs `signMessage`, which Albedo and Rabet lack), and persists the selected
+wallet id across reloads. The backend accepts challenge signatures over the raw
+message or per SEP-53.
 
 ## Auth
 

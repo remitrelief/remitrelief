@@ -1,10 +1,11 @@
 import { StellarWalletsKit } from "@creit.tech/stellar-wallets-kit/sdk";
 import { FreighterModule, FREIGHTER_ID } from "@creit.tech/stellar-wallets-kit/modules/freighter";
-import { AlbedoModule, ALBEDO_ID } from "@creit.tech/stellar-wallets-kit/modules/albedo";
+import { xBullModule, XBULL_ID } from "@creit.tech/stellar-wallets-kit/modules/xbull";
 import { NETWORK_PASSPHRASE } from "./stellar.js";
 
 // Per-module imports keep hardware/WalletConnect wallets out of the bundle.
-const SUPPORTED_WALLET_IDS = new Set([FREIGHTER_ID, ALBEDO_ID]);
+// Sign-in requires signMessage, so wallets without it (Albedo, Rabet) are excluded.
+const SUPPORTED_WALLET_IDS = new Set([FREIGHTER_ID, XBULL_ID]);
 const WALLET_ID_STORAGE_KEY = "remitrelief_wallet_id";
 
 function readStoredWalletId() {
@@ -13,7 +14,7 @@ function readStoredWalletId() {
 }
 
 StellarWalletsKit.init({
-  modules: [new FreighterModule(), new AlbedoModule()],
+  modules: [new FreighterModule(), new xBullModule()],
   network: NETWORK_PASSPHRASE,
   // The kit does not restore the chosen wallet across reloads; signing needs it.
   selectedWalletId: readStoredWalletId(),
